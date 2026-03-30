@@ -1,0 +1,174 @@
+<div class="personnel-page">
+  <!-- KPI Section -->
+  <div class="kpi-section">
+    <div class="kpi-card" (click)="setFilter('tous')">
+      <div class="kpi-value text-cyan">{{ staff().length }}</div>
+      <div class="kpi-label">Total Personnel</div>
+    </div>
+    <div class="kpi-card" (click)="setFilter('actifs')">
+      <div class="kpi-value text-green">{{ totalActifs() }}</div>
+      <div class="kpi-label">Actifs</div>
+    </div>
+    <div class="kpi-card" (click)="setFilter('inactifs')">
+      <div class="kpi-value text-red">{{ totalInactifs() }}</div>
+      <div class="kpi-label">Désactivés</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value text-purple">2</div>
+      <div class="kpi-label">Rôles configurés</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <input type="text" class="search-input" placeholder="Rechercher nom ou email..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)">
+      <select class="filter-select" [ngModel]="activeFilter()" (ngModelChange)="setFilter($event)">
+        <option value="tous">Tous les membres</option>
+        <option value="admin">👑 Admin</option>
+        <option value="receptionniste">📋 Réceptionniste</option>
+        <option value="actifs">✅ Actifs</option>
+        <option value="inactifs">🔒 Désactivés</option>
+      </select>
+    </div>
+    <button class="btn-primary" (click)="openAddModal()">+ Nouveau Compte</button>
+  </div>
+
+  <!-- Cards Grid -->
+  <div class="cards-grid">
+    <div class="staff-card" *ngFor="let member of filteredStaff()" [ngClass]="{'inactive': !member.actif}">
+      <div class="status-dot" [ngClass]="member.actif ? 'active' : 'inactive'"></div>
+      
+      <div class="card-header">
+        <div class="avatar" [style.backgroundColor]="member.avatar_color">{{ getInitials(member) }}</div>
+        <div class="staff-info">
+          <div class="staff-name">{{ member.prenom }} {{ member.nom }}</div>
+          <div class="staff-email">{{ member.email }}</div>
+          <div class="staff-phone">{{ member.telephone }}</div>
+        </div>
+      </div>
+
+      <div class="role-badge" [ngClass]="getRoleMeta(member.role).class">
+        {{ getRoleMeta(member.role).icon }} {{ getRoleMeta(member.role).label }}
+      </div>
+
+      <div class="permissions-container">
+        <div class="perm-chip" *ngFor="let perm of allPermissions" [ngClass]="{'on': member.permissions.includes(perm.id)}">
+          {{ perm.label }}
+        </div>
+      </div>
+
+      <div class="card-footer">
+        <div class="creation-date">Ajouté en {{ member.date_creation }}</div>
+        <div class="card-actions">
+          <button class="action-btn btn-pwd" title="Reset Password" (click)="resetPassword(member.id)">🔑</button>
+          <button class="action-btn btn-edit" title="Modifier" (click)="openEditModal(member.id)">✏️</button>
+          <button class="action-btn btn-toggle" [title]="member.actif ? 'Désactiver' : 'Activer'" (click)="toggleActif(member.id)" [disabled]="member.id === 1">
+            {{ member.actif ? '🔒' : '🔓' }}
+          </button>
+          <button class="action-btn btn-delete" title="Supprimer" (click)="deleteStaff(member.id)" [disabled]="member.id === 1">🗑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" *ngIf="showModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div class="modal-title">{{ modalMode() === 'add' ? 'Créer un nouveau compte' : 'Modifier le compte' }}</div>
+      <button class="btn-close" (click)="closeModal()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Recap in edit mode -->
+      <div class="recap-card" *ngIf="modalMode() === 'edit' && editTarget()">
+        <div class="avatar" [style.backgroundColor]="editTarget()!.avatar_color">{{ getInitials(editTarget()!) }}</div>
+        <div class="recap-info">
+          <div class="recap-name">{{ editTarget()!.prenom }} {{ editTarget()!.nom }}</div>
+          <div class="recap-role">{{ getRoleMeta(editTarget()!.role).icon }} {{ getRoleMeta(editTarget()!.role).label }}</div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Prénom *</label>
+          <input type="text" class="form-input" [(ngModel)]="form.prenom" placeholder="Ex: Jean">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nom *</label>
+          <input type="text" class="form-input" [(ngModel)]="form.nom" placeholder="Ex: Dupont">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input type="email" class="form-input code-font" [(ngModel)]="form.email" placeholder="nom@pulselab.tn">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Téléphone</label>
+          <input type="text" class="form-input code-font" [(ngModel)]="form.telephone" placeholder="+216 ...">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Rôle assigné</label>
+        <div class="role-selector">
+          <div class="role-card" [ngClass]="{'active-admin': form.role === 'admin'}" (click)="selectRole('admin')">
+            <div class="role-card-title">👑 Admin</div>
+            <div class="role-card-desc">Accès total à toutes les fonctions du système.</div>
+          </div>
+          <div class="role-card" [ngClass]="{'active-reception': form.role === 'receptionniste'}" (click)="selectRole('receptionniste')">
+            <div class="role-card-title">📋 Réceptionniste</div>
+            <div class="role-card-desc">Accès aux créneaux, clients, abonnements, ventes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Permissions d'accès</label>
+        <div class="permissions-grid">
+          <label class="perm-checkbox" *ngFor="let perm of allPermissions">
+            <input type="checkbox" 
+                   [checked]="form.permissions.includes(perm.id)" 
+                   (change)="togglePermission(perm.id)"
+                   [disabled]="form.role === 'admin'">
+            <span>{{ perm.label }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group" *ngIf="modalMode() === 'add'">
+        <div class="pwd-generator">
+          <label class="form-label">Mot de passe *</label>
+          <button class="btn-generate" (click)="form.password = generatePassword(); form.password2 = form.password; showToast('Mot de passe généré : ' + form.password, 'info')">
+            🎲 Générer
+          </button>
+        </div>
+        <div class="form-row">
+          <input type="password" class="form-input code-font" [(ngModel)]="form.password" placeholder="Saisir...">
+          <input type="password" class="form-input code-font" [(ngModel)]="form.password2" placeholder="Confirmer...">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-danger" *ngIf="modalMode() === 'edit' && editTarget()?.id !== 1" (click)="deleteStaff(editTarget()!.id)">🗑 Supprimer</button>
+      <div *ngIf="modalMode() === 'edit' && editTarget()?.id === 1"></div> <!-- Spacer -->
+      <div *ngIf="modalMode() === 'add'"></div> <!-- Spacer -->
+      <div class="footer-actions">
+        <button class="btn-secondary" (click)="closeModal()">Annuler</button>
+        <button class="btn-save" (click)="saveStaff()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" *ngIf="toast().visible">
+  <div class="toast" [ngClass]="toast().type">
+    {{ toast().message }}
+  </div>
+</div>

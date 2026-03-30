@@ -1,0 +1,25 @@
+/* ══════════════════════════════════════════════════════
+   PULSE LAB — Global Styles
+   Ajouter ces lignes dans src/styles.css
+══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Reset global dark ── */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: #0b0f1e;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  color: #eef0fa;
+}
+
+/* ── Scrollbar global ── */
+* { box-sizing: border-box; }
+::-webkit-scrollbar       { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }

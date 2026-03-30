@@ -1,0 +1,40 @@
+/* ══════════════════════════════════════════════════════
+   PULSE LAB — Layout Shell
+══════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:host {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.layout-shell {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  background: #0b0f1e;
+  overflow: hidden;
+  font-family: 'Outfit', sans-serif;
+}
+
+.layout-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: #0b0f1e;
+}
+
+.layout-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #0b0f1e;
+}
+
+.layout-content::-webkit-scrollbar       { width: 3px; }
+.layout-content::-webkit-scrollbar-track { background: transparent; }
+.layout-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }

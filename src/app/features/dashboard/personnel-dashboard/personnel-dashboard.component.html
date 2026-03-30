@@ -1,0 +1,311 @@
+<!-- ══ TOAST ══════════════════════════════════════════════════════ -->
+<div *ngIf="toast().visible"
+     class="toast"
+     [class.toast--success]="toast().type === 'success'"
+     [class.toast--warning]="toast().type === 'warning'"
+     [class.toast--info]="toast().type === 'info'">
+  <span>{{ toast().type === 'success' ? '✅' : toast().type === 'warning' ? '⚠️' : 'ℹ️' }}</span>
+  {{ toast().message }}
+</div>
+
+<!-- ══ PAGE ════════════════════════════════════════════════════════ -->
+<div class="perso-page">
+
+  <!-- ── Bannière de bienvenue personnalisée ── -->
+  <div class="role-banner">
+    <div class="rb-left">
+      <div class="rb-avatar">MG</div>
+      <div>
+        <div class="rb-name">Bonjour, Mohamed 👋</div>
+        <div class="rb-role">
+          <span class="rb-role-dot"></span>
+          📋 Réceptionniste · Pulse Lab Tunis
+        </div>
+      </div>
+    </div>
+    <div class="rb-perms">
+      <span class="rb-perm">📅 Créneaux</span>
+      <span class="rb-perm">👥 Clients</span>
+      <span class="rb-perm">🎟️ Abonnements</span>
+      <span class="rb-perm">💰 Ventes</span>
+    </div>
+  </div>
+
+  <!-- ── KPIs opérationnels (SANS revenue mois/année) ── -->
+  <div class="kpi-grid">
+    <div *ngFor="let kpi of kpis"
+         class="kpi-card"
+         (click)="showToast(kpi.label)">
+      <div class="kpi-glow" [style.background]="kpi.color"></div>
+      <div class="kpi-top">
+        <div class="kpi-label">{{ kpi.label }}</div>
+        <div class="kpi-icon"
+             [style.background]="kpi.bgColor"
+             [style.color]="kpi.color"
+             [style.border]="'1px solid ' + kpi.border">
+          {{ kpi.icon }}
+        </div>
+      </div>
+      <div class="kpi-value" [style.color]="kpi.color">{{ kpi.value }}</div>
+      <div class="kpi-trend"
+           [class.trend-up]="kpi.trendType === 'up'"
+           [class.trend-down]="kpi.trendType === 'down'"
+           [class.trend-neutral]="kpi.trendType === 'neutral'">
+        {{ kpi.trend }}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Graphique séances/jour + Donut abonnements ── -->
+  <div class="two-col">
+
+    <!-- Graphique séances par jour -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">
+          📈 Séances par Jour
+          <div class="chart-tabs">
+            <button *ngFor="let m of chartModes"
+                    class="chart-tab"
+                    [class.chart-tab--active]="activeChartMode() === m.key"
+                    (click)="setChartMode(m.key)">
+              {{ m.label }}
+            </button>
+          </div>
+        </div>
+        <button class="card-link" (click)="showToast('Export séances')">📤 Exporter</button>
+      </div>
+      <div class="chart-body">
+        <canvas #seancesCanvas></canvas>
+      </div>
+      <div class="chart-footer">
+        <div *ngFor="let stat of chartFooterStats()" class="chart-stat">
+          <div class="chart-stat-label">{{ stat.label }}</div>
+          <div class="chart-stat-value" [style.color]="stat.color">{{ stat.value }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="right-col">
+
+      <!-- Donut abonnements par TYPE (pas revenue financier) -->
+      <div class="card">
+        <div class="card-header" style="border-bottom:none; padding-bottom:4px">
+          <div class="card-title">🍩 Abonnements par Type</div>
+          <div style="font-size:10px;color:var(--t3)">{{ getTotalAbo() }} clients</div>
+        </div>
+        <div class="donut-wrap">
+          <div class="donut-canvas-wrap">
+            <canvas #donutCanvas width="80" height="80"></canvas>
+            <div class="donut-center">
+              <div class="donut-pct" [style.color]="getTopAbo().color">{{ getTopAbo().count }}</div>
+              <div class="donut-sub">{{ getTopAbo().label }}</div>
+            </div>
+          </div>
+          <div class="donut-legend">
+            <div *ngFor="let abo of aboTypes" class="legend-item">
+              <div class="legend-left">
+                <div class="legend-dot" [style.background]="abo.color"></div>
+                <span class="legend-text">{{ abo.label }}</span>
+              </div>
+              <span class="legend-value">{{ abo.count }} clients</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expirations proches -->
+      <div class="card expiry-card">
+        <div class="card-header">
+          <div class="card-title">
+            ⚠️ Expirations Proches
+            <span class="badge badge--red">{{ expiringAbos.length }} alertes</span>
+          </div>
+          <button class="card-link" (click)="showToast('Liste expirations')">Voir tout</button>
+        </div>
+        <div class="expiry-list">
+          <div *ngFor="let abo of expiringAbos" class="expiry-item">
+            <div class="expiry-avatar" [style.background]="abo.avatar_color">{{ abo.initials }}</div>
+            <div class="expiry-info">
+              <div class="expiry-name">{{ abo.nom }}</div>
+              <div class="expiry-pack">{{ abo.pack }}</div>
+              <div class="expiry-bar">
+                <div class="expiry-bar-fill"
+                     [style.width.%]="abo.bar_percent"
+                     [style.background]="getExpiryColor(abo.jours_restants)">
+                </div>
+              </div>
+            </div>
+            <div class="expiry-days">
+              <div class="expiry-days-num" [style.color]="getExpiryColor(abo.jours_restants)">
+                {{ abo.jours_restants }}j
+              </div>
+              <div class="expiry-days-label">restants</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Séances du Jour ── -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        📅 Séances du Jour
+        <span class="badge">{{ currentDate() | date:'EEE d MMM':'':'fr' }}</span>
+      </div>
+      <button class="card-link" (click)="naviguerCreneaux()">Voir planning complet →</button>
+    </div>
+    <div class="table-scroll">
+      <table class="sessions-table">
+        <thead>
+          <tr>
+            <th>Heure</th>
+            <th>Réservations</th>
+            <th>Appareils</th>
+            <th>Dispo</th>
+            <th>Taux</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of seancesJour" class="session-row">
+            <td><span class="time-mono">{{ s.heure_debut }} – {{ s.heure_fin }}</span></td>
+            <td>
+              <div class="progress-wrap">
+                <div class="progress-bar">
+                  <div class="progress-fill"
+                       [style.width.%]="getOccupancyPercent(s)"
+                       [style.background]="getBarColor(s)">
+                  </div>
+                </div>
+                <span class="progress-text">{{ s.reservations }}/{{ s.places_total }}</span>
+              </div>
+            </td>
+            <td>
+              <div class="devices-wrap">
+                <span *ngIf="s.i_motion > 0" class="device-chip device-chip--motion">⚡ {{ s.i_motion }}</span>
+                <span *ngIf="s.i_model > 0"  class="device-chip device-chip--model">🔷 {{ s.i_model }}</span>
+                <span *ngIf="s.reservations === 0" class="no-device">—</span>
+              </div>
+            </td>
+            <td>
+              <span class="dispo-num"
+                    [style.color]="s.disponibles === 0 ? 'var(--red)' : 'var(--green)'">
+                {{ s.disponibles }}
+              </span>
+            </td>
+            <td>
+              <div class="taux-wrap">
+                <div class="taux-bar">
+                  <div class="taux-fill"
+                       [style.width.%]="getOccupancyPercent(s)"
+                       [style.background]="getBarColor(s)">
+                  </div>
+                </div>
+                <span class="taux-txt">{{ getOccupancyPercent(s) }}%</span>
+              </div>
+            </td>
+            <td>
+              <span class="statut-pill" [ngClass]="getStatutClass(s)">
+                {{ getStatutLabel(s) }}
+              </span>
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="action-btn action-btn--blue"
+                        (click)="naviguerCreneaux(s)">Gérer</button>
+                <button *ngIf="s.disponibles > 0"
+                        class="action-btn action-btn--green"
+                        (click)="ajouterReservation(s)">+ Réserver</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Bottom row ── -->
+  <div class="bottom-row">
+
+    <!-- Activité récente -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔔 Activité Récente</div>
+        <button class="card-link" (click)="showToast('Journal activité')">Tout voir</button>
+      </div>
+      <div class="activity-list">
+        <div *ngFor="let item of activityFeed" class="activity-item">
+          <div class="activity-dot-wrap">
+            <div class="activity-dot" [style.background]="item.dot_color"></div>
+            <div *ngIf="item.has_line" class="activity-line"></div>
+          </div>
+          <div class="activity-content">
+            <div class="activity-text">
+              <strong>{{ item.client }}</strong> {{ item.text }}
+            </div>
+            <div class="activity-time">{{ item.time }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top clients -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🏆 Top Clients du Mois</div>
+        <button class="card-link" (click)="showToast('Liste clients')">Voir tout</button>
+      </div>
+      <div class="top-clients-list">
+        <div *ngFor="let client of topClients" class="top-client-row">
+          <div class="client-rank">#{{ client.rang }}</div>
+          <div class="client-avatar-sm" [style.background]="client.avatar_color">
+            {{ getInitials(client.nom) }}
+          </div>
+          <div class="client-info">
+            <div class="client-nom">{{ client.nom }}</div>
+            <div class="client-abo">{{ client.pack }}</div>
+          </div>
+          <div class="client-score">
+            <div class="client-sessions">{{ client.sessions }}</div>
+            <div class="client-sessions-label">séances</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions rapides (adaptées au rôle) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">⚡ Actions Rapides</div>
+      </div>
+      <div class="quick-actions-grid">
+        <div class="quick-action" (click)="showToast('Nouvelle réservation')">
+          <div class="qa-icon">📝</div><div class="qa-label">Nouvelle Résa</div>
+        </div>
+        <div class="quick-action" (click)="showToast('Ajout client')">
+          <div class="qa-icon">👤</div><div class="qa-label">Ajouter Client</div>
+        </div>
+        <div class="quick-action" (click)="showToast('Renouvellement abonnement')">
+          <div class="qa-icon">🔄</div><div class="qa-label">Renouveler Abo.</div>
+        </div>
+        <div class="quick-action" (click)="naviguerCreneaux()">
+          <div class="qa-icon">📅</div><div class="qa-label">Voir Planning</div>
+        </div>
+        <div class="quick-action" (click)="notifierClients()">
+          <div class="qa-icon">📱</div><div class="qa-label">Notifier Clients</div>
+        </div>
+        <div class="quick-action" (click)="showToast('Nouvel abonnement')">
+          <div class="qa-icon">🎟️</div><div class="qa-label">Nouvel Abo.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>

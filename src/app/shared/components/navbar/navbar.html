@@ -1,0 +1,40 @@
+<header class="navbar">
+
+  <!-- Left: Page title -->
+  <div class="navbar-left">
+    <div class="navbar-title">{{ pageTitle }}</div>
+    <div class="navbar-breadcrumb">{{ breadcrumb }}</div>
+  </div>
+
+  <!-- Right: Actions -->
+  <div class="navbar-right">
+
+    <!-- Date chip -->
+    <div class="navbar-date-chip">
+      📅 {{ currentDate | date:'EEE d MMM yyyy' : '' : 'fr' }}
+    </div>
+
+    <!-- Notifications -->
+    <div class="navbar-icon-btn" title="Notifications">
+      🔔
+      <div class="navbar-notif-dot"></div>
+    </div>
+
+    <!-- Search -->
+    <div class="navbar-icon-btn" title="Recherche">
+      🔍
+    </div>
+
+    <!-- Avatar -->
+    <div class="navbar-avatar-chip">
+      <div class="navbar-avatar">MC</div>
+      <div>
+        <div class="navbar-avatar-name">Mejdi Chebchoub</div>
+        <div class="navbar-avatar-role">Administrateur</div>
+      </div>
+      <div class="navbar-live-dot"></div>
+    </div>
+
+  </div>
+
+</header>
