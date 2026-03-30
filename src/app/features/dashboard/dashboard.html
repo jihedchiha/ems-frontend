@@ -3,23 +3,24 @@
 </ng-container>
 
 <ng-template #personnelDashboard>
-  <ng-container *ngIf="userRole === 'personnel'; else noRole">
+  <ng-container *ngIf="userRole === 'personnel'; else loginPage">
     <app-personnel-dashboard></app-personnel-dashboard>
   </ng-container>
 </ng-template>
 
-<ng-template #noRole>
+<ng-template #loginPage>
+  <!-- Page login / mock login -->
   <div class="p-8 text-center text-gray-500 flex flex-col items-center justify-center min-h-[50vh]">
     <div class="bg-white p-8 rounded-xl shadow-sm border border-gray-100 max-w-md w-full">
-      <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
       <h3 class="text-lg font-medium text-gray-900 mb-2">Authentification Requise</h3>
-      <p class="text-sm text-gray-500 mb-6">Role non défini ou non autorisé (Rôle actuel: {{ userRole || 'aucun' }}). L'API Backend n'étant pas encore connectée, utilisez les boutons ci-dessous pour tester l'interface :</p>
-      
+      <p class="text-sm text-gray-500 mb-6">
+        Veuillez vous connecter pour accéder à l'application.
+      </p>
       <div class="space-y-3">
-        <button (click)="mockLogin('admin')" class="w-full flex justify-center items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">
+        <button (click)="mockLogin('admin')" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200">
           Voir Dashboard Admin
         </button>
-        <button (click)="mockLogin('personnel')" class="w-full flex justify-center items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200">
+        <button (click)="mockLogin('personnel')" class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200">
           Voir Dashboard Personnel
         </button>
       </div>

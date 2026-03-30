@@ -4,18 +4,21 @@ import { Layout } from './shared/layout/layout';
 
 export const routes: Routes = [
 
+  // ✅ LOGIN ROUTE
   {
     path: '',
     component: LoginComponent
   },
 
+  // ✅ LAYOUT (pages protégées)
   {
     path: '',
     component: Layout,
     children: [
+
       {
         path: '',
-        redirectTo: 'login',
+        redirectTo: 'dashboard',
         pathMatch: 'full'
       },
 
@@ -53,12 +56,14 @@ export const routes: Routes = [
           import('./features/ventes/ventes')
             .then(m => m.Ventes)
       },
+
       {
         path: 'personnel',
         loadComponent: () =>
           import('./features/personnel/personnel')
             .then(m => m.PersonnelComponent)
       },
+
       {
         path: 'historique',
         loadComponent: () =>

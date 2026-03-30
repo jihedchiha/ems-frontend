@@ -172,4 +172,6 @@ export class ApiService {
   modifierAbonnement(id: string, data: any): Observable<any> {
     return this.http.put<any>(`${this.baseUrl}/clients/abonnements/${id}/`, data)
   }
+  
 }
+

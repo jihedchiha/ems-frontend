@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
-
+import { ApiService } from '../../../core/services/api.service';
 @Component({
   selector: 'app-navbar',
   standalone: true,
@@ -14,6 +14,7 @@ import { filter } from 'rxjs/operators';
 export class NavbarComponent implements OnInit {
 
   currentDate = new Date();
+  user: any = null;
   pageTitle   = 'EMS Management System';
   breadcrumb  = 'Vue générale du studio';
 
@@ -28,11 +29,12 @@ export class NavbarComponent implements OnInit {
     '/parametres':   { title: 'Paramètres',              bread: 'Accueil / Paramètres'            },
   };
 
-  constructor(private router: Router) {}
+  constructor(private router: Router,private api: ApiService) {}
 
   ngOnInit(): void {
     // Appliquer le titre pour la route initiale
     this.updateTitle(this.router.url);
+    this.loadUser();
 
     // Écouter les changements de route
     this.router.events
@@ -48,4 +50,41 @@ export class NavbarComponent implements OnInit {
       this.breadcrumb = page.bread;
     }
   }
+  loadUser() {
+  const data = localStorage.getItem('user');
+  if (data) {
+    this.user = JSON.parse(data);
+  }
+}
+getInitials(): string {
+  if (!this.user?.nom) return '';
+
+  const parts = this.user.nom.split(' ');
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+}
+logout() {
+  const refresh = localStorage.getItem('refresh');
+
+  if (!refresh) {
+    this.router.navigate(['/login']);
+    return;
+  }
+this.api.logout(refresh).subscribe({
+    next: () => {
+      this.clearSession();
+    },
+    error: () => {
+      // même si erreur → on déconnecte quand même côté front
+      this.clearSession();
+    }
+  });
+  
+}
+clearSession() {
+  localStorage.removeItem('user');
+  localStorage.removeItem('access');
+  localStorage.removeItem('refresh');
+
+  this.router.navigate(['/login']);
+}
 }

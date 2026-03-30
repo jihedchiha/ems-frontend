@@ -6,9 +6,9 @@ import { PersonnelDashboardComponent } from './personnel-dashboard/personnel-das
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, AdminDashboardComponent, PersonnelDashboardComponent],
+  imports: [CommonModule,AdminDashboardComponent, PersonnelDashboardComponent],
   templateUrl: './dashboard.html',
-  styleUrl: './dashboard.css',
+  styleUrls: ['./dashboard.css'],
 })
 export class Dashboard implements OnInit {
   userRole: string = '';
@@ -26,7 +26,9 @@ export class Dashboard implements OnInit {
   }
 
   mockLogin(role: string) {
-    localStorage.setItem('user', JSON.stringify({ id: 1, role: role }));
+    localStorage.setItem('user', JSON.stringify({ id: 1, role }));
     this.userRole = role;
   }
+  
+  
 }

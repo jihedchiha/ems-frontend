@@ -24,15 +24,19 @@
     <div class="navbar-icon-btn" title="Recherche">
       🔍
     </div>
+    <div class="navbar-icon-btn" title="Déconnexion" (click)="logout()">
+  🚪
+</div>
 
     <!-- Avatar -->
     <div class="navbar-avatar-chip">
-      <div class="navbar-avatar">MC</div>
-      <div>
-        <div class="navbar-avatar-name">Mejdi Chebchoub</div>
-        <div class="navbar-avatar-role">Administrateur</div>
-      </div>
-      <div class="navbar-live-dot"></div>
+      <div class="navbar-avatar">
+  {{ getInitials() }}
+</div>
+<div>
+  <div class="navbar-avatar-name">{{ user?.nom }}</div>
+  <div class="navbar-avatar-role">{{ user?.role }}</div>
+</div>
     </div>
 
   </div>
