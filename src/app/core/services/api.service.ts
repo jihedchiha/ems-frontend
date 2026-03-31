@@ -113,9 +113,19 @@ export class ApiService {
   }
 
   // ── DASHBOARD ─────────────────────────────────────────────────
-  getDashboard(periode = '12m'): Observable<any> {
-    return this.http.get<any>(`${this.baseUrl}/users/dashboard/?periode=${periode}`)
-  }
+  getDashboardRevenus(periode = '12m'): Observable<any> {
+  return this.http.get<any>(
+      `${this.baseUrl}/users/dashboard/revenus/?periode=${periode}`
+  )
+}
+
+getDashboardAlertes(): Observable<any> {
+  return this.http.get<any>(`${this.baseUrl}/users/dashboard/alertes/`)
+}
+
+getDashboardClients(): Observable<any> {
+  return this.http.get<any>(`${this.baseUrl}/users/dashboard/clients/`)
+}
 
   // ── HISTORIQUE ────────────────────────────────────────────────
   getHistorique(date?: string): Observable<any> {

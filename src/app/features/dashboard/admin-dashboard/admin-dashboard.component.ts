@@ -6,14 +6,13 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 
-// ── Models ──────────────────────────────────────────────────────────────────
+// ── Models ──────────────────────────────────────────────────────
 
-export interface KpiCard {
+export interface RevenueBlock {
   label:       string;
-  value:       string;
-  unit?:       string;
-  trend:       string;
-  trendType:   'up' | 'down' | 'neutral';
+  total:       number;
+  abonnements: number;
+  ventes:      number;
   icon:        string;
   color:       string;
   bgColor:     string;
@@ -32,26 +31,31 @@ export interface SeanceRow {
 }
 
 export interface ExpiringAbo {
-  initials:       string;
-  nom:            string;
-  type:           string;
-  jours_restants: number;
-  avatar_color:   string;
-  bar_percent:    number;
+  initials:          string;
+  nom:               string;
+  type:              string;
+  seances_restantes: number;
+  avatar_color:      string;
+  bar_percent:       number;
 }
 
-export interface TopClient {
-  rang:        number;
-  nom:         string;
-  abonnement:  string;
-  sessions:    number;
-  avatar_color:string;
+export interface ExpiringProduit {
+  nom:          string;
+  stock:        number;
+  seuil_alerte: number;
+  type:         string;
+}
+
+export interface ClientStats {
+  total:         number;
+  actifs:        number;
+  inactifs:      number;
+  nouveaux_mois: number;
 }
 
 export interface ChartMode {
-  key:   'week' | 'month' | 'year';
-  label: string;
-  // ✅ Période envoyée au backend
+  key:     'week' | 'month' | 'year';
+  label:   string;
   periode: string;
 }
 
@@ -61,7 +65,7 @@ export interface ToastState {
   type:    'success' | 'warning' | 'info';
 }
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────
 
 @Component({
   selector:    'app-admin-dashboard',
@@ -78,94 +82,99 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
   @ViewChild('revenueCanvas') revenueCanvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('donutCanvas')   donutCanvasRef!:   ElementRef<HTMLCanvasElement>;
 
-  // ── State ────────────────────────────────────────────────────────────────
+  // ── State ───────────────────────────────────────────────────────
   currentDate     = signal<Date>(new Date());
   activeChartMode = signal<'week' | 'month' | 'year'>('month');
   toast           = signal<ToastState>({ visible: false, message: '', type: 'success' });
-  isLoadingChart  = signal<boolean>(false);
 
-  private toastTimer:    any = null;
-  private revenueChart:  any = null;
-  private donutChart:    any = null;
+  // Loading granulaire par bloc
+  isLoadingRevenus = signal<boolean>(false);
+  isLoadingAlertes = signal<boolean>(false);
+  isLoadingClients = signal<boolean>(false);
+
+  chartsReady = false;
+
+  private toastTimer:   any = null;
+  private revenueChart: any = null;
+  private donutChart:   any = null;
 
   DONUT_COLORS = ['#3b82f6', '#c084fc', '#fbbf24', '#f87171', '#10b981', '#22d3ee'];
-  abonnementsParTypeData: any[] = [];
 
-  // ══════════════════════════════════════════════════════════════════════
-  // CHART MODES
-  // periode = paramètre envoyé à l'API GET /api/users/dashboard/?periode=...
-  // Adapter les valeurs selon ce que ton backend accepte
-  // ══════════════════════════════════════════════════════════════════════
   chartModes: ChartMode[] = [
-    { key: 'week',  label: '7j',   periode: '7j'  },
-    { key: 'month', label: '12m',  periode: '12m' },
-    { key: 'year',  label: 'Tout', periode: 'all' },
+    { key: 'week',  label: '7j',   periode: '7j'   },
+    { key: 'month', label: '12m',  periode: '12m'  },
+    { key: 'year',  label: 'Tout', periode: 'tout' },
   ];
 
+  // Cache courbe par mode
   CHART_DATA: Record<string, { labels: string[]; data: number[] }> = {
     week:  { labels: [], data: [] },
     month: { labels: [], data: [] },
     year:  { labels: [], data: [] },
   };
 
-  // ── KPIs & données ──────────────────────────────────────────────────
-  kpiCards:     KpiCard[]     = [];
-  seancesJour:  SeanceRow[]   = [];
-  expiringAbos: ExpiringAbo[] = [];
-  topClients:   TopClient[]   = [
-    { rang:1, nom:'Ahmed Mansouri', abonnement:'Pack 20', sessions:48, avatar_color:'#3b82f6' },
-    { rang:2, nom:'Lina Dridi',     abonnement:'Pack 30', sessions:42, avatar_color:'#7c3aed' },
-    { rang:3, nom:'Karim Ben Ali',  abonnement:'Pack 20', sessions:38, avatar_color:'#10b981' },
-    { rang:4, nom:'Yasmine Tlili',  abonnement:'Pack 10', sessions:31, avatar_color:'#f59e0b' },
-    { rang:5, nom:'Omar Belhaj',    abonnement:'Pack 20', sessions:27, avatar_color:'#ec4899' },
-  ];
+  // ── Data signals ────────────────────────────────────────────────
+  revenueBlocs       = signal<RevenueBlock[]>([]);
+  abonnementsParType = signal<any[]>([]);
+  expiringAbos       = signal<ExpiringAbo[]>([]);
+  produitsAlerte     = signal<ExpiringProduit[]>([]);
+  clientStats        = signal<ClientStats>({ total: 0, actifs: 0, inactifs: 0, nouveaux_mois: 0 });
+  seancesJour:         SeanceRow[] = [];
 
-  // ── Computed ─────────────────────────────────────────────────────────
+  // ── Computed ────────────────────────────────────────────────────
   formattedDate = computed(() =>
     this.currentDate().toLocaleDateString('fr-FR', {
-      weekday:'long', year:'numeric', month:'long', day:'numeric'
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     })
   );
 
+  // true si au moins un bloc charge encore
+  isLoading = computed(() =>
+    this.isLoadingRevenus() || this.isLoadingAlertes() || this.isLoadingClients()
+  );
+
   chartFooterStats = computed(() => {
-    const mode = this.activeChartMode();
-    const d    = this.CHART_DATA[mode];
-
-    // Calcul dynamique depuis les vraies données si disponibles
-    if (d?.data?.length > 0) {
-      const max    = Math.max(...d.data);
-      const maxIdx = d.data.indexOf(max);
-      const avg    = Math.round(d.data.reduce((a, b) => a + b, 0) / d.data.length);
-      const maxLabel = d.labels[maxIdx] || '—';
-      return [
-        { label: mode === 'week' ? 'Meilleur jour' : mode === 'month' ? 'Meilleur mois' : 'Meilleure période',
-          value: `${maxLabel} — ${max.toLocaleString('fr-FR')} DT`, color: 'var(--green)' },
-        { label: mode === 'week' ? 'Moyenne/jour' : 'Moyenne mensuelle',
-          value: `${avg.toLocaleString('fr-FR')} DT`, color: '#fff' },
-        { label: 'Total période',
-          value: `${d.data.reduce((a, b) => a + b, 0).toLocaleString('fr-FR')} DT`, color: 'var(--blue)' },
-      ];
-    }
-
-    // Fallback si pas de données
+    const d = this.CHART_DATA[this.activeChartMode()];
+    if (!d?.data?.length) return [
+      { label: 'Données', value: 'Aucune donnée', color: 'var(--t3)' },
+    ];
+    const max      = Math.max(...d.data);
+    const maxIdx   = d.data.indexOf(max);
+    const avg      = Math.round(d.data.reduce((a, b) => a + b, 0) / d.data.length);
+    const total    = d.data.reduce((a, b) => a + b, 0);
+    const maxLabel = d.labels[maxIdx] || '—';
+    const mode     = this.activeChartMode();
     return [
-      { label: 'Données', value: 'En chargement...', color: 'var(--t3)' },
+      {
+        label: mode === 'week' ? 'Meilleur jour' : mode === 'month' ? 'Meilleur mois' : 'Meilleure période',
+        value: `${maxLabel} — ${max.toLocaleString('fr-FR')} DT`,
+        color: 'var(--green)',
+      },
+      {
+        label: mode === 'week' ? 'Moyenne/jour' : 'Moyenne mensuelle',
+        value: `${avg.toLocaleString('fr-FR')} DT`,
+        color: '#fff',
+      },
+      {
+        label: 'Total période',
+        value: `${total.toLocaleString('fr-FR')} DT`,
+        color: 'var(--blue)',
+      },
     ];
   });
 
-  // ── Lifecycle ────────────────────────────────────────────────────────
+  // ── Lifecycle ───────────────────────────────────────────────────
   ngOnInit(): void {
-    // Charger avec le mode par défaut (12m)
-    this.loadDashboardData('month');
+    this.loadRevenus('month');
+    this.loadAlertes();
+    this.loadClients();
   }
 
   ngAfterViewInit(): void {
-    setTimeout(() => {
-      // Les graphiques seront construits après le retour de l'API
-      // Ici on initialise avec des données vides si l'API n'a pas encore répondu
-      this.buildRevenueChart(this.activeChartMode());
-      this.buildDonutChart();
-    }, 100);
+    this.chartsReady = true;
+    const d = this.CHART_DATA['month'];
+    if (d?.labels?.length > 0) this.buildRevenueChart('month');
+    if (this.abonnementsParType().length > 0) this.buildDonutChart();
   }
 
   ngOnDestroy(): void {
@@ -174,137 +183,161 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     clearTimeout(this.toastTimer);
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // CHARGEMENT DASHBOARD — avec période
-  // ══════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
+  // BLOC 1 — GET /api/users/dashboard/revenus/?periode=...
+  // ══════════════════════════════════════════════════════════════════
 
-  loadDashboardData(mode: 'week' | 'month' | 'year'): void {
-    this.isLoadingChart.set(true);
+  loadRevenus(mode: 'week' | 'month' | 'year'): void {
+    this.isLoadingRevenus.set(true);
+    const periode = this.chartModes.find(m => m.key === mode)?.periode || '12m';
 
-    // ✅ Récupérer la période correspondant au mode
-    const chartMode = this.chartModes.find(m => m.key === mode);
-    const periode   = chartMode?.periode || '12m';
-
-    this.apiService.getDashboard(periode).subscribe({
+    this.apiService.getDashboardRevenus(periode).subscribe({
       next: (data: any) => {
-        this.isLoadingChart.set(false);
+        this.isLoadingRevenus.set(false);
 
-        // ── KPIs ──────────────────────────────────────────────────────
-        this.kpiCards = [
+        // ── Revenue blocs ──────────────────────────────────────────
+        const jour  = data.revenu_jour  || { abonnements: 0, ventes: 0, total: 0 };
+        const mois  = data.revenu_mois  || { abonnements: 0, ventes: 0, total: 0 };
+        const annee = data.revenu_annee || { abonnements: 0, ventes: 0, total: 0 };
+
+        this.revenueBlocs.set([
           {
-            label: "Revenue Aujourd'hui",
-            value: data.revenu_jour?.toString() || '0',
-            unit: 'DT', trend: '-', trendType: 'neutral',
+            label: "Revenue du Jour",
+            total:       parseFloat(jour.total),
+            abonnements: parseFloat(jour.abonnements),
+            ventes:      parseFloat(jour.ventes),
             icon: '💰', color: '#3b82f6',
-            bgColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.15)'
+            bgColor: 'rgba(59,130,246,0.08)', borderColor: 'rgba(59,130,246,0.18)',
           },
           {
-            label: 'Revenue ce Mois',
-            value: data.revenu_mois?.toString() || '0',
-            unit: 'DT', trend: '-', trendType: 'neutral',
+            label: 'Revenue Mensuel',
+            total:       parseFloat(mois.total),
+            abonnements: parseFloat(mois.abonnements),
+            ventes:      parseFloat(mois.ventes),
             icon: '📅', color: '#10b981',
-            bgColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.15)'
+            bgColor: 'rgba(16,185,129,0.08)', borderColor: 'rgba(16,185,129,0.18)',
           },
           {
             label: 'Revenue Annuel',
-            value: data.revenu_annee?.toString() || '0',
-            unit: 'DT', trend: '-', trendType: 'neutral',
+            total:       parseFloat(annee.total),
+            abonnements: parseFloat(annee.abonnements),
+            ventes:      parseFloat(annee.ventes),
             icon: '📊', color: '#c084fc',
-            bgColor: 'rgba(192,132,252,0.1)', borderColor: 'rgba(192,132,252,0.15)'
+            bgColor: 'rgba(192,132,252,0.08)', borderColor: 'rgba(192,132,252,0.18)',
           },
-          {
-            label: 'Clients Actifs',
-            value: data.clients_actifs?.toString() || '0',
-            trend: '-', trendType: 'neutral',
-            icon: '👥', color: '#22d3ee',
-            bgColor: 'rgba(34,211,238,0.1)', borderColor: 'rgba(34,211,238,0.15)'
-          },
-          {
-            label: 'Abonnements Actifs',
-            value: data.abonnements_actifs?.toString() || data.clients_actifs?.toString() || '0',
-            trend: `${data.expirations_count || 0} alerte(s)`,
-            trendType: (data.expirations_count || 0) > 0 ? 'down' : 'neutral',
-            icon: '🎟️', color: '#fbbf24',
-            bgColor: 'rgba(251,191,36,0.1)', borderColor: 'rgba(251,191,36,0.15)'
-          },
-          {
-            label: "Séances Aujourd'hui",
-            value: data.seances_aujourd_hui?.toString() || '0',
-            trend: `Taux: ${data.taux_remplissage || 0}% remplissage`,
-            trendType: 'neutral',
-            icon: '⚡', color: '#f87171',
-            bgColor: 'rgba(248,113,113,0.1)', borderColor: 'rgba(248,113,113,0.15)'
-          },
-        ];
+        ]);
 
-        // ── Séances du jour ────────────────────────────────────────────
-        this.seancesJour = (data.seances_du_jour || []).map((s: any) => ({
-          id:           s.id,
-          heure_debut:  s.heure_debut?.substring(0, 5) || '',
-          heure_fin:    s.heure_fin?.substring(0, 5)   || '',
-          reservations: s.reservations   || 0,
-          places_total: s.places_total   || 5,
-          disponibles:  s.places_disponibles || 5,
-          i_motion:     s.i_motion       || 0,
-          i_model:      s.i_model        || 0,
-        }));
+        // ── Courbe (chart ligne) ───────────────────────────────────
+        const courbe: any[] = data.revenus_courbe || [];
+        this.CHART_DATA[mode] = courbe.length
+          ? { labels: courbe.map(r => r.label), data: courbe.map(r => r.total) }
+          : { labels: [], data: [] };
+        if (this.chartsReady) this.buildRevenueChart(mode);
 
-        // ── Expirations proches ────────────────────────────────────────
-        this.expiringAbos = (data.expirations_proches || []).map((e: any) => ({
-          initials:       this.getInitials(e.client_nom || '—'),
-          nom:            e.client_nom || '—',
-          type:           e.type       || '-',
-          jours_restants: e.seances_restantes || 0,
-          avatar_color:   'linear-gradient(135deg,#f59e0b,#d97706)',
-          bar_percent:    Math.min(((e.seances_restantes || 0) / 20) * 100, 100),
-        }));
-
-        // ── Courbe revenus ─────────────────────────────────────────────
-        if (data.revenus_courbe?.length > 0) {
-          const labels  = data.revenus_courbe.map((r: any) => r.label);
-          const amounts = data.revenus_courbe.map((r: any) => r.montant);
-
-          // ✅ Stocker dans le bon mode
-          this.CHART_DATA[mode] = { labels, data: amounts };
-
-          // Reconstruire le graphique
-          this.buildRevenueChart(mode);
-        } else {
-          // Aucune donnée pour ce mode — graphique vide
-          this.CHART_DATA[mode] = { labels: [], data: [] };
-          this.buildRevenueChart(mode);
-        }
-
-        // ── Donut abonnements par type ─────────────────────────────────
-        if (data.abonnements_par_type?.length > 0) {
-          this.abonnementsParTypeData = data.abonnements_par_type;
-          this.buildDonutChart();
+        // ── Revenue par type → donut ───────────────────────────────
+        const parType: any[] = data.revenus_par_type || [];
+        if (parType.length > 0) {
+          this.abonnementsParType.set(parType);
+          if (this.chartsReady) this.buildDonutChart();
         }
       },
       error: (err: any) => {
-        this.isLoadingChart.set(false);
-        console.error('Erreur API Dashboard', err);
-        this.showToast(`Erreur API (${err.status})`, 'warning');
+        this.isLoadingRevenus.set(false);
+        this.showToast(`Erreur revenus (${err.status})`, 'warning');
       }
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // CHART BUILDERS
-  // ══════════════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════
+  // BLOC 2 — GET /api/users/dashboard/alertes/
+  // ══════════════════════════════════════════════════════════════════
 
+  loadAlertes(): void {
+    this.isLoadingAlertes.set(true);
+
+    this.apiService.getDashboardAlertes().subscribe({
+      next: (data: any) => {
+        this.isLoadingAlertes.set(false);
+
+        // ── Expirations abonnements ────────────────────────────────
+        this.expiringAbos.set(
+          (data.expirations_proches || []).map((e: any) => ({
+            initials:          this.getInitials(e.client_nom || '—'),
+            nom:               e.client_nom || '—',
+            type:              e.type       || '-',
+            seances_restantes: e.seances_restantes || 0,
+            avatar_color:      'linear-gradient(135deg,#f59e0b,#d97706)',
+            bar_percent:       Math.min(((e.seances_restantes || 0) / 10) * 100, 100),
+          }))
+        );
+
+        // ── Stock faible ───────────────────────────────────────────
+        this.produitsAlerte.set(
+          (data.stock_faible || []).map((p: any) => ({
+            nom:          p.nom,
+            stock:        p.stock,
+            seuil_alerte: p.seuil_alerte,
+            type:         p.type,
+          }))
+        );
+      },
+      error: (err: any) => {
+        this.isLoadingAlertes.set(false);
+        this.showToast(`Erreur alertes (${err.status})`, 'warning');
+      }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // BLOC 3 — GET /api/users/dashboard/clients/
+  // ══════════════════════════════════════════════════════════════════
+
+  loadClients(): void {
+    this.isLoadingClients.set(true);
+
+    this.apiService.getDashboardClients().subscribe({
+      next: (data: any) => {
+        this.isLoadingClients.set(false);
+
+        // ── Stats clients ──────────────────────────────────────────
+        this.clientStats.set({
+          total:         data.total_clients    || 0,
+          actifs:        data.clients_actifs   || 0,
+          inactifs:      data.clients_inactifs || 0,
+          nouveaux_mois: data.nouveaux_mois    || 0,
+        });
+
+        // ── Abonnements par type → donut (fallback si /revenus/ pas encore chargé) ──
+        if (this.abonnementsParType().length === 0) {
+          const parType: any[] = data.abonnements_par_type || [];
+          if (parType.length > 0) {
+            this.abonnementsParType.set(parType);
+            if (this.chartsReady) this.buildDonutChart();
+          }
+        }
+      },
+      error: (err: any) => {
+        this.isLoadingClients.set(false);
+        this.showToast(`Erreur clients (${err.status})`, 'warning');
+      }
+    });
+  }
+
+  // ── Chart mode switch ────────────────────────────────────────────
+  setChartMode(mode: 'week' | 'month' | 'year'): void {
+    if (this.activeChartMode() === mode) return;
+    this.activeChartMode.set(mode);
+    const cached = this.CHART_DATA[mode];
+    if (cached?.labels?.length > 0) { this.buildRevenueChart(mode); return; }
+    this.loadRevenus(mode);
+  }
+
+  // ── Charts ──────────────────────────────────────────────────────
   private buildRevenueChart(mode: 'week' | 'month' | 'year'): void {
     const Chart = (window as any)['Chart'];
     if (!Chart || !this.revenueCanvasRef) return;
-
     const d = this.CHART_DATA[mode];
-
-    // Données vides — afficher graphique vide proprement
-    if (!d?.labels?.length) {
-      this.revenueChart?.destroy();
-      this.revenueChart = null;
-      return;
-    }
+    if (!d?.labels?.length) { this.revenueChart?.destroy(); this.revenueChart = null; return; }
 
     const ctx  = this.revenueCanvasRef.nativeElement.getContext('2d')!;
     const grad = ctx.createLinearGradient(0, 0, 0, 160);
@@ -317,49 +350,25 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
       data: {
         labels: d.labels,
         datasets: [{
-          data:               d.data,
-          borderColor:        '#3b82f6',
-          backgroundColor:    grad,
-          borderWidth:        2,
-          fill:               true,
-          tension:            0.4,
-          pointBackgroundColor: '#3b82f6',
-          pointBorderColor:   '#111627',
-          pointBorderWidth:   2,
-          pointRadius:        4,
-          pointHoverRadius:   6,
+          data: d.data, borderColor: '#3b82f6', backgroundColor: grad,
+          borderWidth: 2, fill: true, tension: 0.4,
+          pointBackgroundColor: '#3b82f6', pointBorderColor: '#111627',
+          pointBorderWidth: 2, pointRadius: 4, pointHoverRadius: 6,
         }]
       },
       options: {
-        responsive:          true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#111627',
-            borderColor:     'rgba(255,255,255,0.08)',
-            borderWidth:     1,
-            titleColor:      '#eef0fa',
-            bodyColor:       '#9ba3c8',
-            padding:         10,
-            callbacks: {
-              label: (c: any) => ' ' + c.parsed.y.toLocaleString('fr-FR') + ' DT'
-            }
+            backgroundColor: '#111627', borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1, titleColor: '#eef0fa', bodyColor: '#9ba3c8', padding: 10,
+            callbacks: { label: (c: any) => ' ' + c.parsed.y.toLocaleString('fr-FR') + ' DT' }
           }
         },
         scales: {
-          x: {
-            grid:  { color: 'rgba(255,255,255,0.05)' },
-            ticks: { color: '#525c78', font: { size: 10, family: 'JetBrains Mono' } }
-          },
-          y: {
-            grid:  { color: 'rgba(255,255,255,0.05)' },
-            ticks: {
-              color: '#525c78',
-              font:  { size: 10 },
-              callback: (v: any) => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v
-            }
-          }
+          x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#525c78', font: { size: 10, family: 'JetBrains Mono' } } },
+          y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#525c78', font: { size: 10 }, callback: (v: any) => v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v } }
         }
       }
     });
@@ -367,131 +376,82 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
 
   private buildDonutChart(): void {
     const Chart = (window as any)['Chart'];
-    if (!Chart || !this.donutCanvasRef || !this.abonnementsParTypeData.length) return;
-
-    const labels   = this.abonnementsParTypeData.map(a => a.label);
-    const data     = this.abonnementsParTypeData.map(a => a.pourcentage);
-    const bgColors = this.abonnementsParTypeData.map((_, i) => this.getDonutColor(i));
-
+    const data  = this.abonnementsParType();
+    if (!Chart || !this.donutCanvasRef || !data.length) return;
     const ctx = this.donutCanvasRef.nativeElement.getContext('2d')!;
     this.donutChart?.destroy();
     this.donutChart = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels,
+        labels:   data.map(a => a.label),
         datasets: [{
-          data,
-          backgroundColor: bgColors,
-          borderColor:     '#111627',
-          borderWidth:     3,
-          hoverOffset:     4,
+          data:            data.map(a => a.pourcentage),
+          backgroundColor: data.map((_: any, i: number) => this.getDonutColor(i)),
+          borderColor:     '#111627', borderWidth: 3, hoverOffset: 4,
         }]
       },
       options: {
-        responsive:          true,
-        maintainAspectRatio: false,
-        cutout:              '72%',
+        responsive: true, maintainAspectRatio: false, cutout: '72%',
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#111627',
-            borderColor:     'rgba(255,255,255,0.08)',
-            borderWidth:     1,
-            titleColor:      '#eef0fa',
-            bodyColor:       '#9ba3c8',
-            padding:         8,
-            callbacks: {
-              label: (c: any) => ` ${c.parsed}%`
-            }
+            backgroundColor: '#111627', borderColor: 'rgba(255,255,255,0.08)',
+            borderWidth: 1, titleColor: '#eef0fa', bodyColor: '#9ba3c8', padding: 8,
+            callbacks: { label: (c: any) => ` ${c.parsed}%` }
           }
         }
       }
     });
   }
 
-  // ══════════════════════════════════════════════════════════════════════
-  // ACTIONS UTILISATEUR
-  // ══════════════════════════════════════════════════════════════════════
+  // ── Helpers ─────────────────────────────────────────────────────
+  getDonutColor(i: number): string { return this.DONUT_COLORS[i % this.DONUT_COLORS.length]; }
 
-  // ✅ FIX PRINCIPAL — setChartMode appelle maintenant l'API avec la bonne période
-  setChartMode(mode: 'week' | 'month' | 'year'): void {
-    if (this.activeChartMode() === mode) return; // éviter double appel
-    this.activeChartMode.set(mode);
-
-    // Si les données sont déjà en cache → juste redessiner le graphique
-    const cached = this.CHART_DATA[mode];
-    if (cached?.labels?.length > 0) {
-      this.buildRevenueChart(mode);
-      return;
-    }
-
-    // Sinon → appeler l'API avec la bonne période
-    this.loadDashboardData(mode);
+  getBlocAboPercent(bloc: RevenueBlock): number {
+    return bloc.total ? Math.round((bloc.abonnements / bloc.total) * 100) : 0;
+  }
+  getBlocVentePercent(bloc: RevenueBlock): number {
+    return bloc.total ? Math.round((bloc.ventes / bloc.total) * 100) : 0;
   }
 
-  // ── Autres actions ─────────────────────────────────────────────────
-  naviguerVersHistorique(): void {
-    this.router.navigate(['/historique']);
+  getExpiryColor(j: number): string {
+    return j === 0 ? 'var(--red)' : j === 1 ? 'var(--amber)' : 'var(--green)';
   }
 
-  naviguerVersCreneaux(seance?: SeanceRow): void {
-    this.showToast(seance ? `Séance ${seance.heure_debut} ouverte` : 'Planning ouvert', 'info');
-  }
-
-  ajouterReservation(seance: SeanceRow): void {
-    this.showToast(`Réservation ajoutée à ${seance.heure_debut}`, 'success');
-  }
-
-  notifierClients(): void {
-    this.showToast('Notifications envoyées aux clients expirants', 'success');
-  }
-
-  exporterRapport(): void {
-    this.showToast('Rapport exporté avec succès', 'success');
-  }
-
-  // ── Helpers ────────────────────────────────────────────────────────
-  getDonutColor(index: number): string {
-    return this.DONUT_COLORS[index % this.DONUT_COLORS.length];
-  }
-
-  getOccupancyPercent(s: SeanceRow): number {
-    if (!s.places_total) return 0;
-    return Math.round((s.reservations / s.places_total) * 100);
-  }
-
-  getBarColor(s: SeanceRow): string {
-    const p = this.getOccupancyPercent(s);
-    if (p === 100) return 'var(--red)';
-    if (p >= 60)   return 'var(--amber)';
-    return 'var(--green)';
-  }
-
-  getStatutLabel(s: SeanceRow): string {
-    if (s.disponibles === 0)  return 'Complet';
-    if (s.reservations === 0) return 'Vide';
-    if (this.getOccupancyPercent(s) >= 60) return 'Bientôt Plein';
-    return 'Disponible';
-  }
-
-  getStatutClass(s: SeanceRow): string {
-    if (s.disponibles === 0)  return 'sp-full';
-    if (s.reservations === 0) return 'sp-empty';
-    if (this.getOccupancyPercent(s) >= 60) return 'sp-mid';
-    return 'sp-ok';
-  }
-
-  getExpiryColor(jours: number): string {
-    if (jours <= 3) return 'var(--red)';
-    if (jours <= 7) return 'var(--amber)';
-    return 'var(--green)';
-  }
+  getProduitStockColor(p: ExpiringProduit): string { return p.stock === 0 ? '#f87171' : '#fbbf24'; }
+  getProduitStockLabel(p: ExpiringProduit): string { return p.stock === 0 ? 'Rupture' : 'Stock faible'; }
 
   getInitials(nom: string): string {
     return nom.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   }
+  formatRevenu(n: number): string {
+    return n.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
+  }
 
-  // ── Toast ──────────────────────────────────────────────────────────
+  // ── Séances helpers ──────────────────────────────────────────────
+  naviguerVersCreneaux(seance?: SeanceRow): void { this.router.navigate(['/creneaux']); }
+  ajouterReservation(seance: SeanceRow): void {
+    this.showToast(`Réservation ajoutée à ${seance.heure_debut}`, 'success');
+  }
+  getOccupancyPercent(s: SeanceRow): number {
+    return s.places_total ? Math.round((s.reservations / s.places_total) * 100) : 0;
+  }
+  getBarColor(s: SeanceRow): string {
+    const p = this.getOccupancyPercent(s);
+    return p === 100 ? 'var(--red)' : p >= 60 ? 'var(--amber)' : 'var(--green)';
+  }
+  getStatutLabel(s: SeanceRow): string {
+    if (s.disponibles === 0)  return 'Complet';
+    if (s.reservations === 0) return 'Vide';
+    return this.getOccupancyPercent(s) >= 60 ? 'Bientôt Plein' : 'Disponible';
+  }
+  getStatutClass(s: SeanceRow): string {
+    if (s.disponibles === 0)  return 'sp-full';
+    if (s.reservations === 0) return 'sp-empty';
+    return this.getOccupancyPercent(s) >= 60 ? 'sp-mid' : 'sp-ok';
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────
   showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
     clearTimeout(this.toastTimer);
     this.toast.set({ visible: true, message, type });
@@ -500,4 +460,9 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
       3000
     );
   }
+
+  naviguerVersAbonnements(): void { this.router.navigate(['/abonnements']); }
+  naviguerVersVentes():      void { this.router.navigate(['/ventes']); }
+  naviguerVersProduits():    void { this.router.navigate(['/produits']); }
+  naviguerVersClients():     void { this.router.navigate(['/clients']); }
 }
