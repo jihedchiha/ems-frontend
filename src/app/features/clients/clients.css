@@ -421,3 +421,42 @@
 .seance-statut { font-size:10px; font-weight:700; white-space:nowrap; }
 .seance-present { color:#22c55e; }
 .seance-absent  { color:#f87171; }
+
+/* ── Pagination ── */
+.lp-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--b1);
+  background: var(--bg3);
+}
+
+.pag-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--b2);
+  background: var(--bg2);
+  color: var(--t2);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pag-btn:hover:not(:disabled) {
+  background: var(--bg4);
+  color: var(--t1);
+}
+
+.pag-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pag-info {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t2);
+}
