@@ -85,6 +85,6 @@ clearSession() {
   localStorage.removeItem('access');
   localStorage.removeItem('refresh');
 
-  this.router.navigate(['/login']);
+  this.router.navigate(['']);
 }
 }

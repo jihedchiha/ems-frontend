@@ -69,7 +69,13 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/historique/historique')
             .then(m => m.HistoriqueComponent)
-      }
+      },
+     {
+        path: 'produits',
+        loadComponent: () =>
+        import('./features/produits/produits')
+        .then(m => m.ProduitsComponent)
+     }, 
     ]
   },
 
