@@ -123,3 +123,43 @@
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }
 }
+/*css de deconnection*/
+.navbar-icon-btn {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+  cursor: pointer;
+
+  font-size: 18px;
+
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+
+  border: 1px solid rgba(239, 68, 68, 0.15);
+
+  transition: all 0.25s ease;
+}
+
+/* Hover */
+.navbar-icon-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.25);
+}
+
+/* Click */
+.navbar-icon-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+/* Option focus (accessibilité) */
+.navbar-icon-btn:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.5);
+  outline-offset: 2px;
+}

@@ -168,6 +168,7 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadRevenus('month');
     this.loadAlertes();
     this.loadClients();
+    this.loadSeancesJour();
   }
 
   ngAfterViewInit(): void {
@@ -450,6 +451,43 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     if (s.reservations === 0) return 'sp-empty';
     return this.getOccupancyPercent(s) >= 60 ? 'sp-mid' : 'sp-ok';
   }
+  loadSeancesJour(): void {
+  const today = new Date().toISOString().split('T')[0];
+
+  this.apiService.getSeances(today).subscribe({
+    next: (res: any) => {
+      console.log("RAW:", res);
+      const data = res.results || res;
+
+     this.seancesJour = data.map((s: any) => ({
+  id: s.id,
+
+  heure_debut: s.heure_debut?.substring(0, 5) || '',
+  heure_fin: s.heure_fin?.substring(0, 5) || '',
+
+  reservations: s.reservations 
+             ?? s.reservations_count 
+             ?? 0,
+
+  places_total: s.places_total 
+             ?? s.places 
+             ?? 0,
+
+  disponibles: s.places_disponibles 
+            ?? s.disponibles 
+            ?? 0,
+
+  i_motion: s.i_motion ?? 0,
+  i_model: s.i_model ?? 0,
+}));
+
+      console.log("SEANCES MAPPED:", this.seancesJour); // debug
+    },
+    error: (err) => {
+      this.showToast(`Erreur séances (${err.status})`, 'warning');
+    }
+  });
+}
 
   // ── Toast ────────────────────────────────────────────────────────
   showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {

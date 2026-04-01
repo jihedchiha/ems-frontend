@@ -58,11 +58,11 @@ export class ApiService {
   }
 
   // ── SÉANCES ───────────────────────────────────────────────────
-  getSeances(date?: string): Observable<any> {
-    let params = new HttpParams()
-    if (date) params = params.set('date', date)
-    return this.http.get<any>(`${this.baseUrl}/seances/`, { params })
-  }
+ getSeances(date?: string): Observable<any> {
+  let params = new HttpParams()
+  if (date) params = params.set('date', date)
+  return this.http.get<any>(`${this.baseUrl}/seances/`, { params })
+}
 
   getReservations(seanceId: string | number, statut?: string, q?: string): Observable<any> {
     let params = new HttpParams()

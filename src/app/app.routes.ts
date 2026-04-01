@@ -54,7 +54,7 @@ export const routes: Routes = [
         path: 'ventes',
         loadComponent: () =>
           import('./features/ventes/ventes')
-            .then(m => m.Ventes)
+            .then(m => m.VentesComponent)
       },
 
       {
