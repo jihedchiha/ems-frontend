@@ -91,6 +91,7 @@ export class AbonnementsComponent implements OnInit {
   // ── Rôle ──────────────────────────────────────────────────────
   userRole = signal<UserRole>('admin')
   isAdmin  = computed(() => this.userRole() === 'admin')
+  canManageAbo = computed(() => this.userRole() === 'admin' || this.userRole() === 'personnel')
 
   // ── State ──────────────────────────────────────────────────────
   abonnements      = signal<AbonnementAPI[]>([])
@@ -385,8 +386,8 @@ export class AbonnementsComponent implements OnInit {
 
   // ── Modal ──────────────────────────────────────────────────────
   openAddModal(type: PackTypeBackend = 'pack10'): void {
-    if (!this.isAdmin()) {
-      this.showToast('Action réservée à l\'administrateur', 'warning')
+    if (!this.canManageAbo()) {
+      this.showToast('Action non autorisée', 'warning')
       return
     }
     this.modalMode.set('add')
@@ -400,8 +401,8 @@ export class AbonnementsComponent implements OnInit {
   }
 
   openEditModal(id: string): void {
-    if (!this.isAdmin()) {
-      this.showToast('Action réservée à l\'administrateur', 'warning')
+    if (!this.canManageAbo()) {
+      this.showToast('Action non autorisée', 'warning')
       return
     }
     const abo = this.abonnements().find(a => a.id === id)
@@ -423,8 +424,8 @@ export class AbonnementsComponent implements OnInit {
   }
 
   renouvelerAbonnement(id: string): void {
-    if (!this.isAdmin()) {
-      this.showToast('Action réservée à l\'administrateur', 'warning')
+    if (!this.canManageAbo()) {
+      this.showToast('Action non autorisée', 'warning')
       return
     }
     const abo = this.abonnements().find(a => a.id === id)
@@ -513,8 +514,8 @@ export class AbonnementsComponent implements OnInit {
 
   // ── Delete ────────────────────────────────────────────────────
 deleteAbonnement(id: string, clientNom: string): void {
-  if (!this.isAdmin()) {
-    this.showToast('Action réservée à l\'administrateur', 'warning')
+  if (!this.canManageAbo()) {
+    this.showToast('Action non autorisée', 'warning')
     return
   }
   if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return

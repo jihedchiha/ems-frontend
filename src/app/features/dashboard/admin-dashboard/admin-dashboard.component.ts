@@ -175,7 +175,7 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     this.chartsReady = true;
     const d = this.CHART_DATA['month'];
     if (d?.labels?.length > 0) this.buildRevenueChart('month');
-    if (this.abonnementsParType().length > 0) this.buildDonutChart();
+    if (this.abonnementsParType().length > 0) setTimeout(() => this.buildDonutChart(), 0);
   }
 
   ngOnDestroy(): void {
@@ -236,10 +236,23 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
         if (this.chartsReady) this.buildRevenueChart(mode);
 
         // ── Revenue par type → donut ───────────────────────────────
-        const parType: any[] = data.revenus_par_type || [];
-        if (parType.length > 0) {
-          this.abonnementsParType.set(parType);
-          if (this.chartsReady) this.buildDonutChart();
+        console.log("📊 Données brutes Dashboard Revenus:", data);
+        const parTypeSource = data.revenus_par_type || data.revenu_par_type || data.abonnements_par_type || [];
+        let mapped: any[] = [];
+        if (Array.isArray(parTypeSource) && parTypeSource.length > 0) {
+          mapped = parTypeSource.map((p: any) => ({
+            label: p.label || p.type || p.pack || p.nom || 'Inconnu',
+            pourcentage: p.pourcentage ?? p.count ?? p.total ?? p.valeur ?? p.quantite ?? p.montant ?? 0
+          }));
+        } else if (parTypeSource && typeof parTypeSource === 'object' && Object.keys(parTypeSource).length > 0) {
+          mapped = Object.keys(parTypeSource).map(key => ({
+            label: key,
+            pourcentage: parTypeSource[key]
+          }));
+        }
+        if (mapped.length > 0) {
+          this.abonnementsParType.set(mapped);
+          if (this.chartsReady) setTimeout(() => this.buildDonutChart(), 0);
         }
       },
       error: (err: any) => {
@@ -309,11 +322,24 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
         });
 
         // ── Abonnements par type → donut (fallback si /revenus/ pas encore chargé) ──
+        console.log("👥 Données brutes Dashboard Clients:", data);
         if (this.abonnementsParType().length === 0) {
-          const parType: any[] = data.abonnements_par_type || [];
-          if (parType.length > 0) {
-            this.abonnementsParType.set(parType);
-            if (this.chartsReady) this.buildDonutChart();
+          const parTypeSource = data.abonnements_par_type || data.revenus_par_type || data.revenu_par_type || [];
+          let mapped: any[] = [];
+          if (Array.isArray(parTypeSource) && parTypeSource.length > 0) {
+            mapped = parTypeSource.map((p: any) => ({
+              label: p.label || p.type || p.pack || p.nom || 'Inconnu',
+              pourcentage: p.pourcentage ?? p.count ?? p.total ?? p.valeur ?? p.quantite ?? p.montant ?? 0
+            }));
+          } else if (parTypeSource && typeof parTypeSource === 'object' && Object.keys(parTypeSource).length > 0) {
+            mapped = Object.keys(parTypeSource).map(key => ({
+              label: key,
+              pourcentage: parTypeSource[key]
+            }));
+          }
+          if (mapped.length > 0) {
+            this.abonnementsParType.set(mapped);
+            if (this.chartsReady) setTimeout(() => this.buildDonutChart(), 0);
           }
         }
       },

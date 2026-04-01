@@ -12,11 +12,11 @@
 <div class="abo-page">
 
   <!-- Bannière réceptionniste -->
-  <div *ngIf="!isAdmin()" class="role-banner-info">
+  <div *ngIf="!canManageAbo()" class="role-banner-info">
     <span class="role-banner-icon">👁</span>
     <div>
       <div class="role-banner-title">Mode consultation</div>
-      <div class="role-banner-sub">Les modifications sont réservées à l'administrateur.</div>
+      <div class="role-banner-sub">Les modifications sont réservées à l'administrateur et au personnel.</div>
     </div>
   </div>
 
@@ -124,13 +124,13 @@
 
       <div class="pc-footer">
         <div class="pc-count">{{ packCounts()[pack.key] }} actif(s)</div>
-        <button *ngIf="isAdmin()" class="pc-assign-btn"
+        <button *ngIf="canManageAbo()" class="pc-assign-btn"
                 [style.color]="pack.color"
                 [style.border-color]="pack.color + '40'"
                 (click)="openAddModal(pack.key); $event.stopPropagation()">
           + Assigner
         </button>
-        <span *ngIf="!isAdmin()" class="pc-view-only" [style.color]="pack.color + 'aa'">
+        <span *ngIf="!canManageAbo()" class="pc-view-only" [style.color]="pack.color + 'aa'">
           {{ packCounts()[pack.key] }} clients actifs
         </span>
       </div>
@@ -154,7 +154,7 @@
         <button class="flt-btn" [class.flt-btn--active]="activeFilter() === 'essai'"   (click)="setFilter('essai')">🆓 Essais</button>
       </div>
     </div>
-    <button *ngIf="isAdmin()" class="btn-add" (click)="openAddModal()">+ Nouvel Abonnement</button>
+    <button *ngIf="canManageAbo()" class="btn-add" (click)="openAddModal()">+ Nouvel Abonnement</button>
   </div>
 
   <!-- ── Table ── -->
@@ -172,7 +172,7 @@
             <th>Statut</th>
             <th>Paiement</th>
             <th>Prix payé</th>
-            <th *ngIf="isAdmin()">Actions</th>
+            <th *ngIf="canManageAbo()">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -255,7 +255,7 @@
             </td>
 
             <!-- Actions admin -->
-            <td *ngIf="isAdmin()">
+            <td *ngIf="canManageAbo()">
               <div class="actions-cell">
                 <button class="action-btn action-btn--edit"   (click)="openEditModal(abo.id)">✏️ Modifier</button>
                 <button class="action-btn action-btn--renew"  (click)="renouvelerAbonnement(abo.id)">🔄 Renouveler</button>
@@ -265,7 +265,7 @@
           </tr>
 
           <tr *ngIf="filteredAbonnements().length === 0 && !isLoading()">
-            <td [attr.colspan]="isAdmin() ? 10 : 9" class="empty-row">
+            <td [attr.colspan]="canManageAbo() ? 10 : 9" class="empty-row">
               <div class="empty-icon">🎟️</div>
               <div class="empty-text">Aucun abonnement trouvé</div>
             </td>
@@ -278,7 +278,7 @@
 </div>
 
 <!-- ══ MODAL ════════════════════════════════════════════════════════ -->
-<div *ngIf="showModal() && isAdmin()"
+<div *ngIf="showModal() && canManageAbo()"
      class="modal-backdrop" (click)="closeModal()">
   <div class="modal-box" (click)="$event.stopPropagation()">
 

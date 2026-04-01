@@ -90,7 +90,7 @@ export class PersonnelDashboardComponent implements OnInit, AfterViewInit, OnDes
 
   ngAfterViewInit(): void {
     this.chartsReady = true;
-    if (this.abonnementsParType().length > 0) this.buildDonutChart();
+    if (this.abonnementsParType().length > 0) setTimeout(() => this.buildDonutChart(), 0);
   }
 
   ngOnDestroy(): void {
@@ -111,10 +111,23 @@ export class PersonnelDashboardComponent implements OnInit, AfterViewInit, OnDes
           total:       parseFloat(jour.total        || '0'),
         });
 
-        const parType: any[] = data.revenus_par_type || [];
-        if (parType.length > 0) {
-          this.abonnementsParType.set(parType);
-          if (this.chartsReady) this.buildDonutChart();
+        console.log("📊 Données brutes Personnel Dashboard Revenus:", data);
+        const parTypeSource = data.revenus_par_type || data.revenu_par_type || data.abonnements_par_type || [];
+        let mapped: any[] = [];
+        if (Array.isArray(parTypeSource) && parTypeSource.length > 0) {
+          mapped = parTypeSource.map((p: any) => ({
+            label: p.label || p.type || p.pack || p.nom || 'Inconnu',
+            pourcentage: p.pourcentage ?? p.count ?? p.total ?? p.valeur ?? p.quantite ?? p.montant ?? 0
+          }));
+        } else if (parTypeSource && typeof parTypeSource === 'object' && Object.keys(parTypeSource).length > 0) {
+          mapped = Object.keys(parTypeSource).map(key => ({
+            label: key,
+            pourcentage: parTypeSource[key]
+          }));
+        }
+        if (mapped.length > 0) {
+          this.abonnementsParType.set(mapped);
+          if (this.chartsReady) setTimeout(() => this.buildDonutChart(), 0);
         }
       },
       error: (err: any) => {
