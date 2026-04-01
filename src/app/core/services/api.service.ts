@@ -166,6 +166,10 @@ getDashboardClients(): Observable<any> {
   getAbonnementActif(cin: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/clients/${cin}/abonnement/`)
   }
+
+  deleteAbonnement(id: string): Observable<any> {
+  return this.http.delete<any>(`${this.baseUrl}/clients/abonnements/${id}/`)
+}
  
   // ✅ NOUVEAU — créer un abonnement pour un client
   // POST /api/clients/{cin}/abonnement/

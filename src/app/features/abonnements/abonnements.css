@@ -483,3 +483,113 @@
 
 /* Paye toggle dans modal */
 .paye-toggle { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+
+
+/* ── Client Search ── */
+.client-search-group { position: relative; }
+
+.client-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.client-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 13px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.client-search-input {
+  padding-left: 36px !important;
+  padding-right: 36px !important;
+}
+
+.client-search-spinner,
+.client-search-clear {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--t3);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.client-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0; right: 0;
+  background: #1a2035;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 999;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+
+.client-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.client-dropdown-item:hover { background: rgba(255,255,255,.06); }
+
+.cdi-avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+
+.cdi-info { display: flex; flex-direction: column; gap: 2px; }
+.cdi-name { font-size: 13px; font-weight: 600; color: var(--t1); }
+.cdi-meta { font-size: 10px; color: var(--t3); }
+
+.client-dropdown-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--t3);
+  font-size: 12px;
+}
+
+/* Selected chip */
+.client-selected-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: rgba(59,130,246,.1);
+  border: 1px solid rgba(59,130,246,.25);
+  border-radius: 8px;
+}
+
+.chip-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+
+.chip-info { display: flex; flex-direction: column; flex: 1; }
+.chip-name { font-size: 12px; font-weight: 600; color: #fff; }
+.chip-cin  { font-size: 10px; color: var(--t3); }
+
+.chip-remove {
+  background: none; border: none;
+  color: var(--t3); cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color .15s;
+}
+.chip-remove:hover { color: #f87171; }

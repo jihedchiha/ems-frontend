@@ -393,6 +393,9 @@ export class AbonnementsComponent implements OnInit {
     this.editId.set(null)
     this.aboForm = { ...this.emptyForm(), type }
     this.loadClients()
+    this.clientSearchQuery = ''
+    this.selectedClient = null
+    this.showClientDropdown = false
     this.showModal.set(true)
   }
 
@@ -508,8 +511,25 @@ export class AbonnementsComponent implements OnInit {
     })
   }
 
-  // ── Delete ─────────────────────────────────────────────────────
-  
+  // ── Delete ────────────────────────────────────────────────────
+deleteAbonnement(id: string, clientNom: string): void {
+  if (!this.isAdmin()) {
+    this.showToast('Action réservée à l\'administrateur', 'warning')
+    return
+  }
+  if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
+
+  this.apiService.deleteAbonnement(id).subscribe({
+    next: () => {
+      this.abonnements.update(list => list.filter(a => a.id !== id))
+      this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
+    },
+    error: (err) => {
+      const msg = err.error?.error || 'Erreur lors de la suppression'
+      this.showToast(`❌ ${msg}`, 'warning')
+    }
+  })
+}
 
   // ── Toast ──────────────────────────────────────────────────────
   showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
@@ -520,4 +540,41 @@ export class AbonnementsComponent implements OnInit {
       3000
     )
   }
+  // ── Client search ──────────────────────────────────────────────
+clientSearchQuery = ''
+showClientDropdown = false
+selectedClient: ClientOption | null = null
+
+filteredClients = computed(() => {
+  const q = this.clientSearchQuery.toLowerCase().trim()
+  if (!q) return this.clientsOptions()
+  return this.clientsOptions().filter(c =>
+    c.nom.toLowerCase().includes(q) ||
+    c.prenom.toLowerCase().includes(q) ||
+    c.cin.toLowerCase().includes(q) ||
+    (c.telephone_1 || '').includes(q)
+  )
+})
+
+onClientSearch(q: string): void {
+  this.clientSearchQuery = q
+  this.showClientDropdown = true
+  this.selectedClient = null
+  this.aboForm.client_cin = ''
+  if (q.length >= 2) this.loadClients(q)
+}
+
+selectClient(c: ClientOption): void {
+  this.selectedClient = c
+  this.aboForm.client_cin = c.cin
+  this.clientSearchQuery = c.prenom + ' ' + c.nom
+  this.showClientDropdown = false
+}
+
+clearClientSearch(): void {
+  this.clientSearchQuery = ''
+  this.selectedClient = null
+  this.aboForm.client_cin = ''
+  this.showClientDropdown = false
+}
 }
