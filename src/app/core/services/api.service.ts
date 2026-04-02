@@ -18,6 +18,14 @@ export class ApiService {
     return this.http.post<any> (`${this.baseUrl}/users/logout/`, { refresh })
   }
 
+  changePassword(payload: {
+    old_password: string
+    new_password: string
+    confirm_password: string
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/users/change-password/`, payload)
+  }
+
   // ── CLIENTS ───────────────────────────────────────────────────
   getClients(pageOrQuery?: number | string, q = ''): Observable<any> {
   let params = new HttpParams()

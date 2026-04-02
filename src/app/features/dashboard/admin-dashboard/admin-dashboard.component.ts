@@ -3,8 +3,10 @@ import {
   signal, computed, ElementRef, ViewChild, inject
 } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
+
 
 // ── Models ──────────────────────────────────────────────────────
 
@@ -70,7 +72,7 @@ export interface ToastState {
 @Component({
   selector:    'app-admin-dashboard',
   standalone:  true,
-  imports:     [CommonModule, DatePipe],
+  imports:     [CommonModule, DatePipe, FormsModule],
   templateUrl: './admin-dashboard.component.html',
   styleUrl:    './admin-dashboard.component.css',
 })
@@ -86,6 +88,12 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
   currentDate     = signal<Date>(new Date());
   activeChartMode = signal<'week' | 'month' | 'year'>('month');
   toast           = signal<ToastState>({ visible: false, message: '', type: 'success' });
+
+  // ── Change Password Modal ─────────────────────────────────────
+  showPasswordModal = signal<boolean>(false);
+  passwordForm = { old_password: '', new_password: '', confirm_password: '' };
+  passwordError = signal<string | null>(null);
+  passwordLoading = signal<boolean>(false);
 
   // Loading granulaire par bloc
   isLoadingRevenus = signal<boolean>(false);
@@ -529,4 +537,51 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
   naviguerVersVentes():      void { this.router.navigate(['/ventes']); }
   naviguerVersProduits():    void { this.router.navigate(['/produits']); }
   naviguerVersClients():     void { this.router.navigate(['/clients']); }
+
+  // ── Change Password ───────────────────────────────────────────
+  openPasswordModal(): void {
+    this.passwordForm = { old_password: '', new_password: '', confirm_password: '' };
+    this.passwordError.set(null);
+    this.showPasswordModal.set(true);
+  }
+
+  closePasswordModal(): void {
+    this.showPasswordModal.set(false);
+  }
+
+  savePassword(): void {
+    const f = this.passwordForm;
+    this.passwordError.set(null);
+
+    if (!f.old_password || !f.new_password || !f.confirm_password) {
+      this.passwordError.set('Veuillez remplir tous les champs.');
+      return;
+    }
+    if (f.new_password.length < 6) {
+      this.passwordError.set('Le nouveau mot de passe doit contenir au moins 6 caractères.');
+      return;
+    }
+    if (f.new_password !== f.confirm_password) {
+      this.passwordError.set('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
+    this.passwordLoading.set(true);
+    this.apiService.changePassword(f).subscribe({
+      next: () => {
+        this.passwordLoading.set(false);
+        this.closePasswordModal();
+        this.showToast('✅ Mot de passe modifié avec succès', 'success');
+      },
+      error: (err) => {
+        this.passwordLoading.set(false);
+        const msg = err.error?.error
+          || err.error?.old_password?.[0]
+          || err.error?.new_password?.[0]
+          || err.error?.detail
+          || 'Erreur lors du changement de mot de passe';
+        this.passwordError.set(msg);
+      }
+    });
+  }
 }

@@ -16,6 +16,14 @@
     <div class="loading-fill"></div>
   </div>
 
+  <!-- ── TOP BAR ─────────────────────────────────────────────── -->
+  <div class="dash-topbar">
+    <div class="dash-date">{{ formattedDate() }}</div>
+    <button class="btn-change-pwd" (click)="openPasswordModal()">
+      🔐 Changer mot de passe
+    </button>
+  </div>
+
   <!-- ══════════════════════════════════════════════════════════════
        BLOC 1 — REVENUE
        Layout: [Jour | Mois | Annuel] + [Overview chart | Donut par type]
@@ -380,4 +388,86 @@
     </div>
   </div>
 
+</div>
+
+<!-- ══ MODAL CHANGER MOT DE PASSE ════════════════════════════ -->
+<div *ngIf="showPasswordModal()" class="pwd-modal-backdrop" (click)="closePasswordModal()">
+  <div class="pwd-modal-box" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="pwd-modal-header">
+      <div>
+        <div class="pwd-modal-title">🔐 Modifier le mot de passe</div>
+        <div class="pwd-modal-sub">Admin — changement de mot de passe sécurisé</div>
+      </div>
+      <button class="pwd-modal-close" (click)="closePasswordModal()">✕</button>
+    </div>
+
+    <!-- Body -->
+    <div class="pwd-modal-body">
+
+      <!-- Erreur inline -->
+      <div *ngIf="passwordError()" class="pwd-error">
+        <span>⚠️</span> {{ passwordError() }}
+      </div>
+
+      <!-- Ancien mot de passe -->
+      <div class="pwd-field">
+        <label class="pwd-label">Mot de passe actuel *</label>
+        <input
+          type="password"
+          class="pwd-input"
+          placeholder="Saisir votre mot de passe actuel"
+          [(ngModel)]="passwordForm.old_password"
+          autocomplete="current-password" />
+      </div>
+
+      <!-- Nouveau mot de passe -->
+      <div class="pwd-field">
+        <label class="pwd-label">Nouveau mot de passe *</label>
+        <input
+          type="password"
+          class="pwd-input"
+          placeholder="Minimum 6 caractères"
+          [(ngModel)]="passwordForm.new_password"
+          autocomplete="new-password" />
+      </div>
+
+      <!-- Confirmer -->
+      <div class="pwd-field">
+        <label class="pwd-label">Confirmer le nouveau mot de passe *</label>
+        <input
+          type="password"
+          class="pwd-input"
+          placeholder="Répéter le nouveau mot de passe"
+          [(ngModel)]="passwordForm.confirm_password"
+          autocomplete="new-password" />
+      </div>
+
+      <!-- Force indicator -->
+      <div *ngIf="passwordForm.new_password.length > 0" class="pwd-strength">
+        <div class="pwd-strength-bar">
+          <div class="pwd-strength-fill"
+            [style.width.%]="passwordForm.new_password.length >= 12 ? 100 : passwordForm.new_password.length >= 8 ? 66 : 33"
+            [style.background]="passwordForm.new_password.length >= 12 ? '#22d47c' : passwordForm.new_password.length >= 8 ? '#fbbf24' : '#ff6b6b'">
+          </div>
+        </div>
+        <span class="pwd-strength-label"
+          [style.color]="passwordForm.new_password.length >= 12 ? '#22d47c' : passwordForm.new_password.length >= 8 ? '#fbbf24' : '#ff6b6b'">
+          {{ passwordForm.new_password.length >= 12 ? 'Fort ✔' : passwordForm.new_password.length >= 8 ? 'Moyen' : 'Faible' }}
+        </span>
+      </div>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="pwd-modal-footer">
+      <button class="pwd-btn-cancel" (click)="closePasswordModal()" [disabled]="passwordLoading()">Annuler</button>
+      <button class="pwd-btn-save" (click)="savePassword()" [disabled]="passwordLoading()">
+        <span *ngIf="passwordLoading()">⧗ Enregistrement...</span>
+        <span *ngIf="!passwordLoading()">✓ Mettre à jour</span>
+      </button>
+    </div>
+
+  </div>
 </div>
