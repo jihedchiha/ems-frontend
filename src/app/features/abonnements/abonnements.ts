@@ -49,7 +49,6 @@ export interface AboFormLocal {
   date_paiement  : string
   date_expiration: string
   reduction      : number
-  useRemise      : boolean
 }
 
 export interface ClientOption {
@@ -61,21 +60,34 @@ export interface ClientOption {
 }
 
 export interface PackMeta {
-  key       : PackTypeBackend
-  label     : string
-  icon      : string
-  seances   : number
-  prix      : number
-  prixRemise: number | null
-  hasRemise : boolean
-  validite  : string
-  desc      : string
-  color     : string
-  bgClass   : string
-  tagClass  : string
-  popular  ?: boolean
+  key      : PackTypeBackend
+  label    : string
+  icon     : string
+  seances  : number
+  prix     : number
+  validite : string
+  desc     : string
+  color    : string
+  bgClass  : string
+  tagClass : string
+  popular ?: boolean
   bestValue?: boolean
 }
+
+// ── Pack Form pour création / édition ────────────────────────────
+export interface PackFormLocal {
+  key    : PackTypeBackend | ''
+  label  : string
+  icon   : string
+  seances: number | null
+  prix   : number | null
+  validite: string
+  desc   : string
+}
+
+// ── Remises rapides disponibles ───────────────────────────────────
+export const QUICK_DISCOUNTS = [10, 20, 30, 50] as const
+export type QuickDiscount = typeof QUICK_DISCOUNTS[number]
 
 @Component({
   selector   : 'app-abonnements',
@@ -89,8 +101,8 @@ export class AbonnementsComponent implements OnInit {
   private apiService = inject(ApiService)
 
   // ── Rôle ──────────────────────────────────────────────────────
-  userRole = signal<UserRole>('admin')
-  isAdmin  = computed(() => this.userRole() === 'admin')
+  userRole     = signal<UserRole>('admin')
+  isAdmin      = computed(() => this.userRole() === 'admin')
   canManageAbo = computed(() => this.userRole() === 'admin' || this.userRole() === 'personnel')
 
   // ── State ──────────────────────────────────────────────────────
@@ -104,63 +116,73 @@ export class AbonnementsComponent implements OnInit {
   clientsOptions   = signal<ClientOption[]>([])
   isLoadingClients = signal<boolean>(false)
 
+  // ── Pack Modal State ───────────────────────────────────────────
+  showPackModal   = signal<boolean>(false)
+  packModalMode   = signal<'add' | 'edit'>('add')
+  packForm        : PackFormLocal = this.emptyPackForm()
+
   toast = signal<{ visible: boolean; message: string; type: 'success' | 'warning' | 'info' }>({
     visible: false, message: '', type: 'success'
   })
   private toastTimer: any
 
-  aboForm: AboFormLocal = this.emptyForm()
+  aboForm: AboFormLocal = this.emptyAboForm()
+
+  readonly QUICK_DISCOUNTS = QUICK_DISCOUNTS
 
   get searchValue(): string { return this.searchQuery() }
   set searchValue(v: string) { this.searchQuery.set(v) }
 
-  // ── Packs alignés avec le backend ─────────────────────────────
-  readonly PACKS: PackMeta[] = [
+  // ── Packs (mutable pour permettre ajout/modif en local) ───────
+  packs = signal<PackMeta[]>([
     {
       key: 'essai', label: 'Séance Essai', icon: '🆓',
-      seances: 1, prix: 45, prixRemise: null, hasRemise: false,
+      seances: 1, prix: 45,
       validite: '7 jours',
       desc    : 'Découverte sans engagement · 1 séance',
       color: '#9ba3c8', bgClass: 'pack-essai', tagClass: 'tag-essai',
     },
     {
       key: 'unique', label: 'Séance Unique', icon: '⚡',
-      seances: 1, prix: 60, prixRemise: null, hasRemise: false,
+      seances: 1, prix: 60,
       validite: '30 jours',
       desc    : 'Séance à l\'unité · Sans engagement',
       color: '#22d3ee', bgClass: 'pack-unique', tagClass: 'tag-unique',
     },
     {
       key: 'pack5', label: 'Pack Découverte', icon: '🌟',
-      seances: 5, prix: 250, prixRemise: null, hasRemise: false,
+      seances: 5, prix: 250,
       validite: '2 mois',
       desc    : 'Idéal pour débuter · 5 séances',
       color: '#f59e0b', bgClass: 'pack-5', tagClass: 'tag-5',
     },
     {
       key: 'pack10', label: 'Pack 10', icon: '🔷',
-      seances: 10, prix: 550, prixRemise: 440, hasRemise: true,
+      seances: 10, prix: 550,
       validite: '3 mois',
-      desc    : 'Remise ouverture disponible · -20%',
+      desc    : '10 séances · Populaire',
       color: '#c084fc', bgClass: 'pack-10', tagClass: 'tag-10',
       popular: true,
     },
     {
       key: 'pack20', label: 'Pack 20', icon: '💎',
-      seances: 20, prix: 920, prixRemise: 730, hasRemise: true,
+      seances: 20, prix: 920,
       validite: '4 mois',
-      desc    : 'Remise ouverture disponible · -21%',
+      desc    : '20 séances · Best seller',
       color: '#3b82f6', bgClass: 'pack-20', tagClass: 'tag-20',
     },
     {
       key: 'pack30', label: 'Pack 30', icon: '💪',
-      seances: 30, prix: 1150, prixRemise: 960, hasRemise: true,
+      seances: 30, prix: 1150,
       validite: '5 mois',
-      desc    : 'Remise ouverture disponible · -17%',
+      desc    : '30 séances · Meilleure valeur',
       color: '#22c55e', bgClass: 'pack-30', tagClass: 'tag-30',
       bestValue: true,
     },
-  ]
+  ])
+
+  // Gardé en lecture seule pour accès direct dans le template
+  get PACKS(): PackMeta[] { return this.packs() }
 
   readonly MODES_PAIEMENT = [
     { key: 'cash' as ModePaiement, label: 'Espèces',        icon: '💵' },
@@ -212,10 +234,13 @@ export class AbonnementsComponent implements OnInit {
 
   parseFloat = parseFloat
 
+  // Prix final affiché dans le formulaire d'abonnement
   prixAffiche(): number {
-    const pack = this.PACKS.find(p => p.key === this.aboForm.type)
+    const pack = this.packs().find(p => p.key === this.aboForm.type)
     if (!pack) return 0
-    if (this.aboForm.useRemise && pack.prixRemise !== null) return pack.prixRemise
+    if (this.aboForm.reduction > 0) {
+      return Math.round(pack.prix * (1 - this.aboForm.reduction / 100))
+    }
     return pack.prix
   }
 
@@ -266,7 +291,7 @@ export class AbonnementsComponent implements OnInit {
   // ── Charger clients ────────────────────────────────────────────
   loadClients(q = ''): void {
     this.isLoadingClients.set(true)
-    this.apiService.getClients(q).subscribe({  // ← corrigé
+    this.apiService.getClients(q).subscribe({
       next: (data: any) => {
         const list = Array.isArray(data) ? data : (data.results || [])
         this.clientsOptions.set(list)
@@ -275,9 +300,10 @@ export class AbonnementsComponent implements OnInit {
       error: () => this.isLoadingClients.set(false)
     })
   }
+
   editTarget = computed(() =>
     this.abonnements().find(a => a.id === this.editId()) ?? null
-  );
+  )
 
   // ── Helpers ────────────────────────────────────────────────────
   readonly AVATAR_COLORS = [
@@ -294,7 +320,7 @@ export class AbonnementsComponent implements OnInit {
   }
 
   getPackMeta(type: PackTypeBackend): PackMeta {
-    return this.PACKS.find(p => p.key === type) ?? this.PACKS[0]
+    return this.packs().find(p => p.key === type) ?? this.packs()[0]
   }
 
   getProgressPercent(a: AbonnementAPI): number {
@@ -350,7 +376,8 @@ export class AbonnementsComponent implements OnInit {
     return Math.round(meta.prix * pct / 100)
   }
 
-  private emptyForm(): AboFormLocal {
+  // ── Forms vides ────────────────────────────────────────────────
+  private emptyAboForm(): AboFormLocal {
     return {
       client_cin     : '',
       type           : 'pack10',
@@ -359,32 +386,40 @@ export class AbonnementsComponent implements OnInit {
       date_paiement  : '',
       date_expiration: '',
       reduction      : 0,
-      useRemise      : false,
     }
   }
 
+  private emptyPackForm(): PackFormLocal {
+    return {
+      key     : '',
+      label   : '',
+      icon    : '📦',
+      seances : null,
+      prix    : null,
+      validite: '',
+      desc    : '',
+    }
+  }
+
+  // ── Remise rapide ──────────────────────────────────────────────
   onPackChange(type: PackTypeBackend): void {
     this.aboForm.type      = type
-    this.aboForm.useRemise = false
     this.aboForm.reduction = 0
   }
 
-  onRemiseToggle(): void {
-    const pack = this.PACKS.find(p => p.key === this.aboForm.type)
-    if (!pack) return
-    if (this.aboForm.useRemise && pack.prixRemise !== null) {
-      this.aboForm.reduction = Math.round(
-        ((pack.prix - pack.prixRemise) / pack.prix) * 100
-      )
+  /** Sélectionne ou désélectionne une remise rapide */
+  selectQuickDiscount(pct: QuickDiscount): void {
+    if (this.aboForm.reduction === pct) {
+      this.aboForm.reduction = 0   // désactiver si déjà sélectionnée
     } else {
-      this.aboForm.reduction = 0
+      this.aboForm.reduction = pct
     }
   }
 
   // ── Filtres ────────────────────────────────────────────────────
   setFilter(f: FilterMode): void { this.activeFilter.set(f) }
 
-  // ── Modal ──────────────────────────────────────────────────────
+  // ── Modal Abonnement ───────────────────────────────────────────
   openAddModal(type: PackTypeBackend = 'pack10'): void {
     if (!this.canManageAbo()) {
       this.showToast('Action non autorisée', 'warning')
@@ -392,7 +427,7 @@ export class AbonnementsComponent implements OnInit {
     }
     this.modalMode.set('add')
     this.editId.set(null)
-    this.aboForm = { ...this.emptyForm(), type }
+    this.aboForm = { ...this.emptyAboForm(), type }
     this.loadClients()
     this.clientSearchQuery = ''
     this.selectedClient = null
@@ -418,7 +453,6 @@ export class AbonnementsComponent implements OnInit {
       date_paiement  : abo.date_paiement   || '',
       date_expiration: abo.date_expiration || '',
       reduction      : parseFloat(abo.reduction || '0'),
-      useRemise      : parseFloat(abo.reduction || '0') > 0,
     }
     this.showModal.set(true)
   }
@@ -434,7 +468,7 @@ export class AbonnementsComponent implements OnInit {
     this.modalMode.set('add')
     this.editId.set(null)
     this.aboForm = {
-      ...this.emptyForm(),
+      ...this.emptyAboForm(),
       type         : abo.type,
       mode_paiement: abo.mode_paiement || 'cash',
     }
@@ -445,7 +479,89 @@ export class AbonnementsComponent implements OnInit {
 
   closeModal(): void { this.showModal.set(false) }
 
-  // ── Save ───────────────────────────────────────────────────────
+  // ── Modal Pack ─────────────────────────────────────────────────
+  openAddPackModal(): void {
+    if (!this.isAdmin()) {
+      this.showToast('Action réservée à l\'administrateur', 'warning')
+      return
+    }
+    this.packModalMode.set('add')
+    this.packForm = this.emptyPackForm()
+    this.showPackModal.set(true)
+  }
+
+  openEditPackModal(pack: PackMeta): void {
+    if (!this.isAdmin()) {
+      this.showToast('Action réservée à l\'administrateur', 'warning')
+      return
+    }
+    this.packModalMode.set('edit')
+    this.packForm = {
+      key     : pack.key,
+      label   : pack.label,
+      icon    : pack.icon,
+      seances : pack.seances,
+      prix    : pack.prix,
+      validite: pack.validite,
+      desc    : pack.desc,
+    }
+    this.showPackModal.set(true)
+  }
+
+  closePackModal(): void { this.showPackModal.set(false) }
+
+  savePackForm(): void {
+    const f = this.packForm
+    if (!f.label.trim()) {
+      this.showToast('Veuillez saisir un nom de pack', 'warning')
+      return
+    }
+    if (!f.seances || f.seances <= 0) {
+      this.showToast('Veuillez saisir un nombre de séances valide', 'warning')
+      return
+    }
+    if (!f.prix || f.prix <= 0) {
+      this.showToast('Veuillez saisir un prix valide', 'warning')
+      return
+    }
+
+    if (this.packModalMode() === 'edit' && f.key) {
+      // Mise à jour du pack existant
+      this.packs.update(list =>
+        list.map(p => p.key === f.key ? {
+          ...p,
+          label   : f.label.trim(),
+          icon    : f.icon || '📦',
+          seances : f.seances!,
+          prix    : f.prix!,
+          validite: f.validite.trim() || p.validite,
+          desc    : f.desc.trim() || p.desc,
+        } : p)
+      )
+      this.showToast(`✅ Pack "${f.label}" modifié`, 'success')
+    } else {
+      // Création d'un nouveau pack — ajouté localement
+      // NOTE: en production, envoyer via API puis recharger
+      const newPack: PackMeta = {
+        key     : (f.label.toLowerCase().replace(/\s+/g, '_')) as PackTypeBackend,
+        label   : f.label.trim(),
+        icon    : f.icon || '📦',
+        seances : f.seances!,
+        prix    : f.prix!,
+        validite: f.validite.trim() || '3 mois',
+        desc    : f.desc.trim() || `${f.seances} séances · ${f.label}`,
+        color   : '#a78bfa',
+        bgClass : 'pack-custom',
+        tagClass: 'tag-custom',
+      }
+      this.packs.update(list => [...list, newPack])
+      this.showToast(`✅ Pack "${newPack.label}" créé`, 'success')
+    }
+
+    this.closePackModal()
+  }
+
+  // ── Save Abonnement ────────────────────────────────────────────
   saveAbonnement(): void {
     if (this.modalMode() === 'add') {
       this.creerAbonnement()
@@ -512,25 +628,25 @@ export class AbonnementsComponent implements OnInit {
     })
   }
 
-  // ── Delete ────────────────────────────────────────────────────
-deleteAbonnement(id: string, clientNom: string): void {
-  if (!this.canManageAbo()) {
-    this.showToast('Action non autorisée', 'warning')
-    return
-  }
-  if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
-
-  this.apiService.deleteAbonnement(id).subscribe({
-    next: () => {
-      this.abonnements.update(list => list.filter(a => a.id !== id))
-      this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
-    },
-    error: (err) => {
-      const msg = err.error?.error || 'Erreur lors de la suppression'
-      this.showToast(`❌ ${msg}`, 'warning')
+  // ── Delete ─────────────────────────────────────────────────────
+  deleteAbonnement(id: string, clientNom: string): void {
+    if (!this.canManageAbo()) {
+      this.showToast('Action non autorisée', 'warning')
+      return
     }
-  })
-}
+    if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
+
+    this.apiService.deleteAbonnement(id).subscribe({
+      next: () => {
+        this.abonnements.update(list => list.filter(a => a.id !== id))
+        this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
+      },
+      error: (err) => {
+        const msg = err.error?.error || 'Erreur lors de la suppression'
+        this.showToast(`❌ ${msg}`, 'warning')
+      }
+    })
+  }
 
   // ── Toast ──────────────────────────────────────────────────────
   showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
@@ -541,41 +657,42 @@ deleteAbonnement(id: string, clientNom: string): void {
       3000
     )
   }
+
   // ── Client search ──────────────────────────────────────────────
-clientSearchQuery = ''
-showClientDropdown = false
-selectedClient: ClientOption | null = null
+  clientSearchQuery  = ''
+  showClientDropdown = false
+  selectedClient     : ClientOption | null = null
 
-filteredClients = computed(() => {
-  const q = this.clientSearchQuery.toLowerCase().trim()
-  if (!q) return this.clientsOptions()
-  return this.clientsOptions().filter(c =>
-    c.nom.toLowerCase().includes(q) ||
-    c.prenom.toLowerCase().includes(q) ||
-    c.cin.toLowerCase().includes(q) ||
-    (c.telephone_1 || '').includes(q)
-  )
-})
+  filteredClients = computed(() => {
+    const q = this.clientSearchQuery.toLowerCase().trim()
+    if (!q) return this.clientsOptions()
+    return this.clientsOptions().filter(c =>
+      c.nom.toLowerCase().includes(q) ||
+      c.prenom.toLowerCase().includes(q) ||
+      c.cin.toLowerCase().includes(q) ||
+      (c.telephone_1 || '').includes(q)
+    )
+  })
 
-onClientSearch(q: string): void {
-  this.clientSearchQuery = q
-  this.showClientDropdown = true
-  this.selectedClient = null
-  this.aboForm.client_cin = ''
-  if (q.length >= 2) this.loadClients(q)
-}
+  onClientSearch(q: string): void {
+    this.clientSearchQuery = q
+    this.showClientDropdown = true
+    this.selectedClient = null
+    this.aboForm.client_cin = ''
+    if (q.length >= 2) this.loadClients(q)
+  }
 
-selectClient(c: ClientOption): void {
-  this.selectedClient = c
-  this.aboForm.client_cin = c.cin
-  this.clientSearchQuery = c.prenom + ' ' + c.nom
-  this.showClientDropdown = false
-}
+  selectClient(c: ClientOption): void {
+    this.selectedClient = c
+    this.aboForm.client_cin = c.cin
+    this.clientSearchQuery = c.prenom + ' ' + c.nom
+    this.showClientDropdown = false
+  }
 
-clearClientSearch(): void {
-  this.clientSearchQuery = ''
-  this.selectedClient = null
-  this.aboForm.client_cin = ''
-  this.showClientDropdown = false
-}
+  clearClientSearch(): void {
+    this.clientSearchQuery = ''
+    this.selectedClient = null
+    this.aboForm.client_cin = ''
+    this.showClientDropdown = false
+  }
 }

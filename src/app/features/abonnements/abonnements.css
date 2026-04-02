@@ -593,3 +593,158 @@
   transition: color .15s;
 }
 .chip-remove:hover { color: #f87171; }
+/* ══════════════════════════════════════════════════════════════
+   AJOUTS CSS — Pack Modal + Quick Discount Bar
+   À ajouter dans abonnements.css
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Modal Pack (taille réduite) ─────────────────────────────── */
+.modal-box--pack {
+  max-width: 520px;
+}
+
+/* ── Prix input wrapper ───────────────────────────────────────── */
+.prix-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.prix-input-wrap .form-input {
+  padding-right: 36px;
+}
+.prix-input-unit {
+  position: absolute;
+  right: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--t3);
+  pointer-events: none;
+}
+
+/* ── Pack Preview ─────────────────────────────────────────────── */
+.pack-preview {
+  margin-top: 8px;
+}
+.pack-preview-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--t3);
+  margin-bottom: 6px;
+}
+.pack-preview-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px;
+}
+.pack-preview-icon {
+  font-size: 24px;
+}
+.pack-preview-info {
+  flex: 1;
+}
+.pack-preview-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--t1);
+}
+.pack-preview-meta {
+  font-size: 11px;
+  color: var(--t3);
+  margin-top: 2px;
+}
+.pack-preview-prix {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+/* ══ Remise Section ═══════════════════════════════════════════════ */
+.remise-section {
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.remise-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.remise-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--t1);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+.remise-active-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: rgba(34,197,94,.15);
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,.25);
+}
+
+/* Prix de base */
+.prix-base-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.prix-base-label {
+  font-size: 11px;
+  color: var(--t3);
+}
+.prix-base-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+/* ── remise rapide ─────────────────────────────────────── */
+.remise-manual {
+  margin-top: 12px;
+}
+
+.remise-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.remise-input {
+  padding-right: 30px;
+}
+
+.remise-unit {
+  position: absolute;
+  right: 10px;
+  color: #aaa;
+  font-weight: 600;
+}
+
+.remise-slider {
+  width: 100%;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.remise-preview {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #22c55e;
+  font-weight: 600;
+}
