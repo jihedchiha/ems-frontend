@@ -559,11 +559,14 @@ export class AbonnementsComponent implements OnInit {
     }
 
     // Champs attendus par CreerPackSerializer / ModifierPackSerializer
-    const payload = {
+    const payload: any = {
       nom:         f.label.trim(),
       nb_seances:  f.seances,
       prix:        f.prix,
-      description: f.desc.trim(),
+    }
+    
+    if (f.desc && f.desc.trim()) {
+      payload.description = f.desc.trim()
     }
 
     if (this.packModalMode() === 'edit' && f.id) {
