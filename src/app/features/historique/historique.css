@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 :host {
   display: block;
   --bg:      #0b0f1e;
@@ -311,3 +309,102 @@
   opacity: 0.3;
   cursor: not-allowed;
 }
+/* Copiez ce contenu À LA FIN de votre historique.css */
+
+/* ══════════════════════════════════════════════════════
+   MOBILE ≤ 768px
+══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  .hist-page { padding: 10px 12px; gap: 10px; overflow-x: hidden; }
+
+  /* Header */
+  .hist-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .hist-title  { font-size: 16px; }
+  .refresh-btn { width: 100%; justify-content: center; }
+
+  /* Filter bar */
+  .filter-bar  { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filter-tabs { flex-wrap: wrap; gap: 4px; }
+  .filter-tab  { font-size: 10px; padding: 5px 9px; flex: 1; text-align: center; justify-content: center; display: flex; }
+  
+  /* Nouveaux éléments : Date selector et barre de recherche pleines largeurs */
+  .date-selector { display: flex; width: 100%; gap: 6px; }
+  .date-input { flex: 1; width: 100%; }
+  .search-wrap { min-width: unset; width: 100%; }
+
+  /* Stats bar */
+  .stats-bar { flex-wrap: wrap; gap: 6px; }
+  .stat-chip { flex: 1; min-width: 80px; justify-content: center; }
+
+  /* Tableau : scroll horizontal */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .hist-table   { min-width: 580px; }
+
+  /* Cacher colonnes secondaires */
+  .hist-table th:nth-child(1),
+  .hist-table td:nth-child(1),
+  .hist-table th:nth-child(5),
+  .hist-table td:nth-child(5) { display: none; }
+
+  /* Pagination */
+  .pagination { flex-wrap: wrap; gap: 3px; }
+  .page-btn   { width: 28px; height: 28px; font-size: 10px; }
+}
+
+/* ══════════════════════════════════════════════════════
+   PAYSAGE ≤ 1024px
+══════════════════════════════════════════════════════ */
+@media (max-width: 1024px) and (orientation: landscape) {
+  .hist-table { min-width: unset; }
+  .hist-table th:nth-child(1),
+  .hist-table td:nth-child(1),
+  .hist-table th:nth-child(5),
+  .hist-table td:nth-child(5) { display: table-cell; }
+  .filter-bar { flex-direction: row; }
+}
+
+/* ══════════════════════════════════════════════════════
+   TRÈS PETIT ≤ 400px
+══════════════════════════════════════════════════════ */
+@media (max-width: 400px) {
+  .hist-page  { padding: 8px; }
+  .hist-title { font-size: 14px; }
+  .filter-tab { font-size: 9px; padding: 4px 7px; }
+}
+/* Sélecteur de date */
+.date-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-input {
+  background: var(--bg2);
+  border: 1px solid var(--b2);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 11px;
+  color: var(--t1);
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  color-scheme: dark;
+}
+.date-input:focus { border-color: var(--blue); }
+
+.btn-reset-date {
+  padding: 6px 10px;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2);
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.btn-reset-date:hover { background: rgba(59,130,246,0.2); }

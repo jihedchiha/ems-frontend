@@ -4,27 +4,31 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/services/api.service';
 
 export interface HistoriqueEntry {
-  id: number;
-  client: string;
-  type: string;
-  description: string;
-  date: string;
-  dot_color: string;
-  badge_class: string;
+  id          : string;
+  personnel   : string;   // UUID
+  personnelNom: string;   // "Karim Aziz"
+  action      : string;   // "creer_client"
+  actionLabel : string;   // "Créer client"
+  details     : any;      // objet JSON libre
+  createdAt   : string;   // ISO date
+  // Champs calculés pour l'affichage
+  client      : string;
+  description : string;
+  badgeClass  : string;
+  dotColor    : string;
 }
 
 @Component({
-  selector: 'app-historique',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
+  selector   : 'app-historique',
+  standalone : true,
+  imports    : [CommonModule, FormsModule],
   templateUrl: './historique.html',
-  styleUrl: './historique.css'
+  styleUrl   : './historique.css'
 })
 export class HistoriqueComponent implements OnInit {
 
   private apiService = inject(ApiService);
 
-  // ── State ────────────────────────────────────────────────────────────────
   allEntries   = signal<HistoriqueEntry[]>([]);
   isLoading    = signal(true);
   hasError     = signal(false);
@@ -32,26 +36,36 @@ export class HistoriqueComponent implements OnInit {
   activeFilter = signal<string>('all');
   currentPage  = signal(1);
   readonly pageSize = 15;
+  selectedDate = signal<string>('');                          // '' = 7 derniers jours
+  today        = new Date().toISOString().split('T')[0];     // max du datepicker
 
-  // ── Filters ──────────────────────────────────────────────────────────────
+  // Filtres alignés sur les valeurs d'action du backend
   filters = [
-    { key: 'all',         label: 'Tout',        icon: '📋' },
-    { key: 'reservation', label: 'Réservations', icon: '📅' },
-    { key: 'presence',    label: 'Présences',    icon: '✅' },
-    { key: 'annulation',  label: 'Annulations',  icon: '❌' },
-    { key: 'abonnement',  label: 'Abonnements',  icon: '🎟️' },
-    { key: 'client',      label: 'Clients',      icon: '👤' },
+    { key: 'all',               label: 'Tout',         icon: '📋' },
+    { key: 'creer_reservation', label: 'Réservations', icon: '📅' },
+    { key: 'marquer_present',   label: 'Présences',    icon: '✅' },
+    { key: 'creer_abonnement',  label: 'Abonnements',  icon: '🎟️' },
+    { key: 'creer_client',      label: 'Clients',      icon: '👤' },
+    { key: 'creer_vente',       label: 'Ventes',       icon: '💰' },
+    { key: 'connexion',         label: 'Connexions',   icon: '🔑' },
   ];
 
-  // ── Computed ─────────────────────────────────────────────────────────────
+  // ── Computed ──────────────────────────────────────────────────────────────
   filteredEntries = computed(() => {
     const q = this.searchQuery().toLowerCase().trim();
     const f = this.activeFilter();
+
     return this.allEntries().filter(e => {
-      const matchFilter = f === 'all' || e.type.toLowerCase().includes(f);
-      const matchSearch = !q || e.client.toLowerCase().includes(q)
-                               || e.description.toLowerCase().includes(q)
-                               || e.type.toLowerCase().includes(q);
+      // Filtre par action (exact match sauf 'all')
+      const matchFilter = f === 'all' || e.action === f;
+
+      // Recherche sur nom personnel, client, description
+      const matchSearch = !q
+        || e.personnelNom.toLowerCase().includes(q)
+        || e.client.toLowerCase().includes(q)
+        || e.description.toLowerCase().includes(q)
+        || e.actionLabel.toLowerCase().includes(q);
+
       return matchFilter && matchSearch;
     });
   });
@@ -65,10 +79,9 @@ export class HistoriqueComponent implements OnInit {
     return this.filteredEntries().slice(start, start + this.pageSize);
   });
 
-  pageNumbers = computed(() => {
-    const total = this.totalPages();
-    return Array.from({ length: total }, (_, i) => i + 1);
-  });
+  pageNumbers = computed(() =>
+    Array.from({ length: this.totalPages() }, (_, i) => i + 1)
+  );
 
   totalCount = computed(() => this.filteredEntries().length);
 
@@ -78,62 +91,116 @@ export class HistoriqueComponent implements OnInit {
   }
 
   loadHistorique(): void {
-    this.isLoading.set(true);
-    this.hasError.set(false);
-    this.apiService.getHistorique().subscribe({
-      next: (data) => {
-        const items: any[] = Array.isArray(data) ? data : (data?.results ?? []);
-        this.allEntries.set(items.map((h: any, i: number) => this.mapEntry(h, i)));
-        this.isLoading.set(false);
-      },
-      error: (err) => {
-        console.error('Erreur API Historique', err);
-        this.isLoading.set(false);
-        this.hasError.set(true);
-      }
-    });
-  }
+  this.isLoading.set(true);
+  this.hasError.set(false);
 
-  private mapEntry(h: any, i: number): HistoriqueEntry {
-    const type = (h.type || h.action || '').toLowerCase();
+  const date = this.selectedDate();
+  this.apiService.getHistorique(date || undefined).subscribe({
+    next: (data) => {
+      let items: any[] = Array.isArray(data) ? data : (data?.results ?? []);
+      
+      // Filtrer l'historique si le role n'est pas "admin"
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          if (user && user.role !== 'admin') {
+            items = items.filter(h => 
+              String(h.personnel) === String(user.id) || 
+              h.personnel === user.username || 
+              h.personnel_nom === user.nom
+            );
+          }
+        } catch(e) {}
+      }
+
+      this.allEntries.set(items.map((h: any) => this.mapEntry(h)));
+      this.isLoading.set(false);
+    },
+    error: (err) => {
+      console.log('=== ERREUR ===', err)  // ← ajouter
+      this.isLoading.set(false);
+      this.hasError.set(true);
+    }
+  });
+}
+
+  // ── Mapping backend → frontend ────────────────────────────────────────────
+  private mapEntry(h: any): HistoriqueEntry {
+    const action  = h.action || '';
+    const details = h.details || {};
+
     return {
-      id: h.id ?? i,
-      client: h.client_nom || h.client || h.user || '—',
-      type: h.type || h.action || 'Activité',
-      description: h.description || h.details || this.buildDescription(type, h),
-      date: h.date || h.created_at || h.timestamp || '',
-      dot_color: this.getColor(type),
-      badge_class: this.getBadgeClass(type),
+      id          : h.id,
+      personnel   : h.personnel,
+      personnelNom: h.personnel_nom || '—',
+      action      : action,
+      actionLabel : h.action_label || action,
+      details     : details,
+      createdAt   : h.created_at || '',
+      // Champs calculés
+      client      : this.extractClient(action, details),
+      description : this.buildDescription(action, details),
+      badgeClass  : this.getBadgeClass(action),
+      dotColor    : this.getDotColor(action),
     };
   }
 
-  private buildDescription(type: string, h: any): string {
-    if (type.includes('reservation') || type.includes('réservation')) return `Séance ${h.seance_id || ''}`.trim();
-    if (type.includes('presence') || type.includes('présence')) return 'Marqué présent en séance';
-    if (type.includes('annul')) return 'Réservation annulée';
-    if (type.includes('abonnement') || type.includes('abo')) return h.abonnement_type || 'Abonnement mis à jour';
-    if (type.includes('client') || type.includes('inscription')) return 'Nouveau client inscrit';
-    return h.type || h.action || 'Activité enregistrée';
+  // Extrait le nom du client depuis details selon l'action
+  private extractClient(action: string, details: any): string {
+    // La plupart des actions ont client_nom dans details
+    if (details.client_nom) return details.client_nom;
+    // Connexion/déconnexion → nom du personnel
+    if (details.username)   return details.username;
+    return '—';
   }
 
-  getColor(type: string): string {
-    const t = type.toLowerCase();
-    if (t.includes('presence') || t.includes('présence') || t.includes('check')) return '#22c55e';
-    if (t.includes('reservation') || t.includes('réservation')) return '#3b82f6';
-    if (t.includes('annul')) return '#f87171';
-    if (t.includes('client') || t.includes('inscription')) return '#c084fc';
-    if (t.includes('abo') || t.includes('abonnement')) return '#fbbf24';
-    return '#9ba3c8';
+  // Construit une description lisible depuis details
+  private buildDescription(action: string, details: any): string {
+    switch (action) {
+      case 'connexion':
+        return 'Connexion au système';
+      case 'deconnexion':
+        return 'Déconnexion du système';
+      case 'creer_client':
+        return `CIN : ${details.client_cin || '—'}`;
+      case 'creer_abonnement':
+        return `Pack ${details.type || '—'} — ${details.prix_paye || '—'} DT`;
+      case 'creer_reservation':
+        return `Séance ${details.seance_date || '—'} ${details.seance_heure || '—'} — ${details.type_appareil || '—'}`.trim();
+      case 'marquer_present':
+        return `Séance ${details.seance_date || '—'} ${details.seance_heure || '—'}`.trim();
+      case 'creer_vente':
+        return `Total : ${details.prix_total || '—'} DT (${details.lignes?.length || 0} article(s))`;
+      default:
+        return action;
+    }
   }
 
-  getBadgeClass(type: string): string {
-    const t = type.toLowerCase();
-    if (t.includes('presence') || t.includes('présence')) return 'badge--green';
-    if (t.includes('reservation') || t.includes('réservation')) return 'badge--blue';
-    if (t.includes('annul')) return 'badge--red';
-    if (t.includes('client') || t.includes('inscription')) return 'badge--purple';
-    if (t.includes('abo') || t.includes('abonnement')) return 'badge--amber';
-    return 'badge--neutral';
+  getDotColor(action: string): string {
+    const colors: Record<string, string> = {
+      connexion         : '#9ba3c8',
+      deconnexion       : '#9ba3c8',
+      creer_client      : '#c084fc',
+      creer_abonnement  : '#fbbf24',
+      creer_reservation : '#3b82f6',
+      marquer_present   : '#22c55e',
+      creer_vente       : '#22d3ee',
+    };
+    return colors[action] || '#9ba3c8';
+  }
+
+  getBadgeClass(action: string): string {
+    const classes: Record<string, string> = {
+      connexion         : 'badge--neutral',
+      deconnexion       : 'badge--neutral',
+      creer_client      : 'badge--purple',
+      creer_abonnement  : 'badge--amber',
+      creer_reservation : 'badge--blue',
+      marquer_present   : 'badge--green',
+      creer_vente       : 'badge--blue',
+    };
+    return classes[action] || 'badge--neutral';
   }
 
   formatDate(dateStr: string): string {
@@ -149,19 +216,32 @@ export class HistoriqueComponent implements OnInit {
   formatRelative(dateStr: string): string {
     if (!dateStr) return '';
     try {
-      const d = new Date(dateStr);
-      const now = new Date();
-      const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
-      if (diffMin < 1) return 'À l\'instant';
+      const diffMin = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
+      if (diffMin < 1)  return 'À l\'instant';
       if (diffMin < 60) return `Il y a ${diffMin} min`;
       const diffH = Math.floor(diffMin / 60);
-      if (diffH < 24) return `Il y a ${diffH}h`;
+      if (diffH < 24)   return `Il y a ${diffH}h`;
       const diffD = Math.floor(diffH / 24);
-      return `Il y a ${diffD}j`;
+      if (diffD < 7)    return `Il y a ${diffD}j`;
+      return this.formatDate(dateStr);
     } catch { return dateStr; }
   }
 
   // ── Actions ───────────────────────────────────────────────────────────────
+
+  onDateChange(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.selectedDate.set(val);
+    this.currentPage.set(1);
+    this.loadHistorique();
+  }
+
+  resetDate(): void {
+    this.selectedDate.set('');
+    this.currentPage.set(1);
+    this.loadHistorique();
+  }
+
   setFilter(key: string): void {
     this.activeFilter.set(key);
     this.currentPage.set(1);

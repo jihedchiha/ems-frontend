@@ -121,6 +121,8 @@ export class AbonnementsComponent implements OnInit {
   packModalMode   = signal<'add' | 'edit'>('add')
   packForm        : PackFormLocal = this.emptyPackForm()
 
+
+
   toast = signal<{ visible: boolean; message: string; type: 'success' | 'warning' | 'info' }>({
     visible: false, message: '', type: 'success'
   })
@@ -173,7 +175,7 @@ export class AbonnementsComponent implements OnInit {
     },
     {
       key: 'pack30', label: 'Pack 30', icon: '💪',
-      seances: 30, prix: 1150,
+      seances: 30, prix: 1200,
       validite: '5 mois',
       desc    : '30 séances · Meilleure valeur',
       color: '#22c55e', bgClass: 'pack-30', tagClass: 'tag-30',
@@ -425,6 +427,7 @@ export class AbonnementsComponent implements OnInit {
       this.showToast('Action non autorisée', 'warning')
       return
     }
+    this.formError.set('')
     this.modalMode.set('add')
     this.editId.set(null)
     this.aboForm = { ...this.emptyAboForm(), type }
@@ -443,6 +446,7 @@ export class AbonnementsComponent implements OnInit {
     const abo = this.abonnements().find(a => a.id === id)
     if (!abo) return
 
+    this.formError.set('')
     this.modalMode.set('edit')
     this.editId.set(id)
     this.aboForm = {
@@ -465,6 +469,7 @@ export class AbonnementsComponent implements OnInit {
     const abo = this.abonnements().find(a => a.id === id)
     if (!abo) return
 
+    this.formError.set('')
     this.modalMode.set('add')
     this.editId.set(null)
     this.aboForm = {
@@ -485,6 +490,8 @@ export class AbonnementsComponent implements OnInit {
       this.showToast('Action réservée à l\'administrateur', 'warning')
       return
     }
+  
+    this.formError.set(null)
     this.packModalMode.set('add')
     this.packForm = this.emptyPackForm()
     this.showPackModal.set(true)
@@ -495,6 +502,8 @@ export class AbonnementsComponent implements OnInit {
       this.showToast('Action réservée à l\'administrateur', 'warning')
       return
     }
+  
+    this.formError.set(null)
     this.packModalMode.set('edit')
     this.packForm = {
       key     : pack.key,
@@ -511,17 +520,18 @@ export class AbonnementsComponent implements OnInit {
   closePackModal(): void { this.showPackModal.set(false) }
 
   savePackForm(): void {
+    this.formError.set(null)
     const f = this.packForm
     if (!f.label.trim()) {
-      this.showToast('Veuillez saisir un nom de pack', 'warning')
+      this.formError.set('Veuillez saisir un nom de pack')
       return
     }
     if (!f.seances || f.seances <= 0) {
-      this.showToast('Veuillez saisir un nombre de séances valide', 'warning')
+      this.formError.set('Veuillez saisir un nombre de séances valide')
       return
     }
     if (!f.prix || f.prix <= 0) {
-      this.showToast('Veuillez saisir un prix valide', 'warning')
+      this.formError.set('Veuillez saisir un prix valide')
       return
     }
 
@@ -570,86 +580,107 @@ export class AbonnementsComponent implements OnInit {
     }
   }
 
+  formError = signal<string | null>(null)
+  
   private creerAbonnement(): void {
-    if (!this.aboForm.client_cin) {
-      this.showToast('Veuillez sélectionner un client', 'warning')
-      return
-    }
+  this.formError.set(null)
 
-    const payload: AboFormPayload = {
-      type           : this.aboForm.type,
-      mode_paiement  : this.aboForm.mode_paiement,
-      est_paye       : this.aboForm.est_paye,
-      date_paiement  : this.aboForm.date_paiement   || null,
-      date_expiration: this.aboForm.date_expiration || null,
-      reduction      : this.aboForm.reduction,
-    }
-
-    this.apiService.createAbonnement(this.aboForm.client_cin, payload).subscribe({
-      next: (abo: any) => {
-        this.loadAbonnements()
-        this.showToast(
-          `Abonnement ${this.getPackMeta(abo.type).label} créé`,
-          'success'
-        )
-        this.closeModal()
-      },
-      error: (err) => {
-        const msg = err.error?.error ||
-                    err.error?.non_field_errors?.[0] ||
-                    'Erreur lors de la création'
-        this.showToast(`❌ ${msg}`, 'warning')
-      }
-    })
+  if (!this.aboForm.client_cin) {
+    this.formError.set('Veuillez sélectionner un client')
+    return
   }
+
+  const payload: AboFormPayload = {
+    type           : this.aboForm.type,
+    mode_paiement  : this.aboForm.mode_paiement,
+    est_paye       : this.aboForm.est_paye,
+    date_paiement  : this.aboForm.date_paiement   || null,
+    date_expiration: this.aboForm.date_expiration || null,
+    reduction      : this.aboForm.reduction,
+  }
+
+  this.apiService.createAbonnement(this.aboForm.client_cin, payload).subscribe({
+    next: (abo: any) => {
+      this.loadAbonnements()
+      this.showToast(
+        `Abonnement ${this.getPackMeta(abo.type).label} créé`,
+        'success'
+      )
+      this.closeModal()
+    },
+
+    error: (err) => {
+      this.formError.set(this.extractErrorMessage(err))
+    }
+  })
+}
+
+private extractErrorMessage(err: any): string {
+  if (!err?.error) return 'Erreur inconnue'
+
+  if (err.error.error) return err.error.error
+
+  if (err.error.non_field_errors?.length) {
+    return err.error.non_field_errors[0]
+  }
+
+  const firstKey = Object.keys(err.error)[0]
+  if (firstKey && err.error[firstKey]?.length) {
+    return err.error[firstKey][0]
+  }
+
+  return 'Erreur serveur'
+}
 
   private modifierAbonnement(): void {
-    const id = this.editId()
-    if (!id) return
+  this.formError.set(null)
 
-    const payload: Partial<AboFormPayload> = {
-      mode_paiement  : this.aboForm.mode_paiement,
-      est_paye       : this.aboForm.est_paye,
-      date_paiement  : this.aboForm.date_paiement   || null,
-      date_expiration: this.aboForm.date_expiration || null,
-      reduction      : this.aboForm.reduction,
-    }
+  const id = this.editId()
+  if (!id) return
 
-    this.apiService.modifierAbonnement(id, payload).subscribe({
-      next: () => {
-        this.loadAbonnements()
-        this.showToast('✅ Abonnement modifié', 'success')
-        this.closeModal()
-      },
-      error: (err) => {
-        const msg = err.error?.error || 'Erreur lors de la modification'
-        this.showToast(`❌ ${msg}`, 'warning')
-      }
-    })
+  const payload: Partial<AboFormPayload> = {
+    mode_paiement  : this.aboForm.mode_paiement,
+    est_paye       : this.aboForm.est_paye,
+    date_paiement  : this.aboForm.date_paiement   || null,
+    date_expiration: this.aboForm.date_expiration || null,
+    reduction      : this.aboForm.reduction,
   }
+
+  this.apiService.modifierAbonnement(id, payload).subscribe({
+    next: () => {
+      this.loadAbonnements()
+      this.showToast('Abonnement modifié avec succès', 'success')
+      this.closeModal()
+    },
+
+    error: (err) => {
+      this.formError.set(this.extractErrorMessage(err))
+    }
+  })
+}
 
   // ── Delete ─────────────────────────────────────────────────────
   deleteAbonnement(id: string, clientNom: string): void {
-    if (!this.canManageAbo()) {
-      this.showToast('Action non autorisée', 'warning')
-      return
-    }
-    if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
-
-    this.apiService.deleteAbonnement(id).subscribe({
-      next: () => {
-        this.abonnements.update(list => list.filter(a => a.id !== id))
-        this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
-      },
-      error: (err) => {
-        const msg = err.error?.error || 'Erreur lors de la suppression'
-        this.showToast(`❌ ${msg}`, 'warning')
-      }
-    })
+  if (!this.canManageAbo()) {
+    this.showToast('Action non autorisée', 'warning')
+    return
   }
+  if (!confirm( `Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
+
+  this.apiService.deleteAbonnement(id).subscribe({
+    next: () => {
+      this.abonnements.update(list => list.filter(a => a.id !== id))
+      this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
+    },
+    error: (err) => {
+      const msg = err.error?.error || 'Erreur lors de la suppression'
+      this.showToast(`❌ ${msg}`, 'warning')
+    }
+  })
+}
 
   // ── Toast ──────────────────────────────────────────────────────
-  showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
+ showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
     clearTimeout(this.toastTimer)
     this.toast.set({ visible: true, message, type })
     this.toastTimer = setTimeout(

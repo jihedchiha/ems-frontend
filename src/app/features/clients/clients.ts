@@ -236,7 +236,8 @@ previousPage(): void {
       statut: c.abonnement_actif && c.abonnement_actif !== 'inactif'
               ? 'actif' : 'inactif',
       // Normaliser telephone
-      telephone_2: c.telephone_2 || '',
+      telephone_2: (c.telephone_2 && c.telephone_2 !== '-') ? c.telephone_2.trim() : '',
+      email: (c.email && c.email !== '-') ? c.email.trim() : '',
       // date_inscription (alias pour created_at si encore utilisé)
       date_inscription: c.created_at,
       avatar_color: c.avatar_color || this.getAvatarColor(c.nom || 'X')
@@ -530,18 +531,41 @@ previousPage(): void {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('nom', this.clientForm.nom);
-    formData.append('prenom', this.clientForm.prenom);
-    formData.append('cin', this.clientForm.cin);
-    formData.append('telephone_1', this.clientForm.telephone_1);
-    if (this.clientForm.telephone_2) formData.append('telephone_2', this.clientForm.telephone_2);
-    if (this.clientForm.email) formData.append('email', this.clientForm.email);
-    if (this.clientForm.date_naissance) formData.append('date_naissance', this.clientForm.date_naissance);
-    if (this.clientForm.photo) formData.append('photo', this.clientForm.photo);
+    let payload: any;
+
+    if (this.clientForm.photo) {
+      // S'il y a une photo modifiée, on utilise le format FormData
+      payload = new FormData();
+      payload.append('nom', this.clientForm.nom);
+      payload.append('prenom', this.clientForm.prenom);
+      payload.append('cin', this.clientForm.cin);
+      payload.append('telephone_1', this.clientForm.telephone_1);
+      
+      // La base de données refuse null, donc on envoie un tiret "-" pour signifier "supprimé"
+      payload.append('telephone_2', this.clientForm.telephone_2 ? this.clientForm.telephone_2.trim() : '-');
+      payload.append('email', this.clientForm.email ? this.clientForm.email.trim() : '-');
+      
+      if (this.clientForm.date_naissance) payload.append('date_naissance', this.clientForm.date_naissance);
+      payload.append('photo', this.clientForm.photo);
+    } else {
+      // S'il n'y a PAS de photo, on utilise du JSON classique !
+      // Le backend refuse `null`, on doit donc lui envoyer un tiret "-"
+      // Le JSON et le Frontend s'accorderont pour ignorer ce tiret à l'affichage.
+      payload = {
+        nom: this.clientForm.nom,
+        prenom: this.clientForm.prenom,
+        cin: this.clientForm.cin,
+        telephone_1: this.clientForm.telephone_1,
+        telephone_2: this.clientForm.telephone_2 ? this.clientForm.telephone_2.trim() : "-",
+        email: this.clientForm.email ? this.clientForm.email.trim() : "-",
+      };
+      if (this.clientForm.date_naissance) {
+        payload.date_naissance = this.clientForm.date_naissance;
+      }
+    }
 
     if (this.modalMode() === 'add') {
-      this.apiService.createClient(formData).subscribe({
+      this.apiService.createClient(payload).subscribe({
         next: (res: any) => {
           this.showToast(`✅ Client ${this.clientForm.prenom} ajouté`, 'success');
           this.loadClients(this.searchValue);
@@ -556,7 +580,7 @@ previousPage(): void {
       // PUT /api/clients/{cin}/
       const c = this.selectedClient();
       if (!c) return;
-      this.apiService.modifierClient(c.cin, formData).subscribe({
+      this.apiService.modifierClient(c.cin, payload).subscribe({
         next: () => {
           this.showToast('✅ Client modifié', 'success');
           this.loadClients(this.searchValue);

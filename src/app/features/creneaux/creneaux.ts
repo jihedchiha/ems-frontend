@@ -120,7 +120,7 @@ export class CreneauxComponent implements OnInit {
     this.seances().find(s => String(s.id) === String(this.selectedSeanceId())) ?? null
   );
   allReservations = computed(() => this.reservations())
-  
+
   selectedSeanceReservations = computed(() => {
     const sId = this.selectedSeanceId();
     if (!sId) return [];
@@ -137,34 +137,34 @@ export class CreneauxComponent implements OnInit {
     this.allReservations().filter(r => r.statut === 'en_attente').length
   );
   tauxRemplissage = computed(() => {
-  const seances = this.seances();
+    const seances = this.seances();
 
-  if (seances.length === 0) return 0;
+    if (seances.length === 0) return 0;
 
-  let totalPlaces = 0;
-  let totalOccupees = 0;
+    let totalPlaces = 0;
+    let totalOccupees = 0;
 
-  seances.forEach(s => {
-    const capacite = 5;
+    seances.forEach(s => {
+      const capacite = 3;
 
-    totalPlaces += capacite;
+      totalPlaces += capacite;
 
-    const reservationsValides = this.reservations().filter(r =>
-      String(r.seance_id) === String(s.id) &&
-      r.statut !== 'absent' &&
-      r.statut !== 'annule'
-    );
+      const reservationsValides = this.reservations().filter(r =>
+        String(r.seance_id) === String(s.id) &&
+        r.statut !== 'absent' &&
+        r.statut !== 'annule'
+      );
 
-    totalOccupees += reservationsValides.length;
+      totalOccupees += reservationsValides.length;
+    });
+
+    return Math.round((totalOccupees / totalPlaces) * 100);
   });
-
-  return Math.round((totalOccupees / totalPlaces) * 100);
-});
 
   occupationPercent = computed(() => {
     const s = this.selectedSeance();
     if (!s) return 0;
-    return Math.round(((5 - s.places_disponibles) / 5) * 100);
+    return Math.round(((3 - s.places_disponibles) / 3) * 100);
   });
 
   ringDashArray = signal<string>('125.66');
@@ -174,10 +174,10 @@ export class CreneauxComponent implements OnInit {
   });
 
   countTotalSeance = computed(() =>
-  this.selectedSeanceReservations().filter(r =>
-    r.statut !== 'absent' && r.statut !== 'annule'
-  ).length
-);
+    this.selectedSeanceReservations().filter(r =>
+      r.statut !== 'absent' && r.statut !== 'annule'
+    ).length
+  );
 
   countPresent = computed(() =>
     this.selectedSeanceReservations().filter(r => r.statut === 'present').length
@@ -251,7 +251,7 @@ export class CreneauxComponent implements OnInit {
   }
 
   getBarColor(seance: Seance): string {
-    const pct = ((5 - seance.places_disponibles) / 5) * 100;
+    const pct = ((3 - seance.places_disponibles) / 3) * 100;
     if (pct === 100) return 'bg-red-500';
     if (pct >= 60) return 'bg-amber-500';
     return 'bg-emerald-500';
@@ -310,12 +310,12 @@ export class CreneauxComponent implements OnInit {
         }
       },
       error: err => console.error('Erreur chargement seances', err)
-      
+
     });
   }
-    
+
   loadReservations(seanceId: string | number): void {
-     console.log("📡 [LOAD] Début chargement des réservations");
+    console.log("📡 [LOAD] Début chargement des réservations");
     this.apiService.getReservations(seanceId).subscribe({
       next: (data: any) => {
         console.log("✅ [API SUCCESS] Réservations reçues :", data);
@@ -342,7 +342,7 @@ export class CreneauxComponent implements OnInit {
         this.reservations.set(mapped);
 
         console.log('RESERVATIONS LOADED:', mapped);
-        console.log("all res ",this.allReservations())
+        console.log("all res ", this.allReservations())
       }
     });
   }
@@ -360,124 +360,124 @@ export class CreneauxComponent implements OnInit {
     console.log("📡 [SELECT SEANCE] id =", id);
   }
   changeReservationStatus(id: string | number, statut: 'present' | 'absent'): void {
-  const reservation = this.reservations().find(r => String(r.id) === String(id))
-  if (!reservation) return
+    const reservation = this.reservations().find(r => String(r.id) === String(id))
+    if (!reservation) return
 
-  const ancienStatut = reservation.statut
+    const ancienStatut = reservation.statut
 
-  // Vérifier que la transition est valide
-  if (ancienStatut === statut) return
+    // Vérifier que la transition est valide
+    if (ancienStatut === statut) return
 
-  // Mise à jour locale
-  this.reservations.update(list =>
-    list.map(r =>
-      String(r.id) === String(id)
-        ? { ...r, statut, statut_label: this.getResStatutLabel(statut) }
-        : r
+    // Mise à jour locale
+    this.reservations.update(list =>
+      list.map(r =>
+        String(r.id) === String(id)
+          ? { ...r, statut, statut_label: this.getResStatutLabel(statut) }
+          : r
+      )
     )
-  )
 
-  // Mise à jour places
-  this.seances.update(seances =>
-    seances.map(s => {
-      if (String(s.id) !== String(this.selectedSeanceId())) return s
+    // Mise à jour places
+    this.seances.update(seances =>
+      seances.map(s => {
+        if (String(s.id) !== String(this.selectedSeanceId())) return s
 
-      let delta = 0
+        let delta = 0
 
-      // en_attente → absent : libère la place
-      if (ancienStatut === 'en_attente' && statut === 'absent') delta = +1
+        // en_attente → absent : libère la place
+        if (ancienStatut === 'en_attente' && statut === 'absent') delta = +1
 
-      // present → absent : libère la place
-      if (ancienStatut === 'present' && statut === 'absent') delta = +1
+        // present → absent : libère la place
+        if (ancienStatut === 'present' && statut === 'absent') delta = +1
 
-      // absent → present : reprend une place
-      if (ancienStatut === 'absent' && statut === 'present') delta = -1
+        // absent → present : reprend une place
+        if (ancienStatut === 'absent' && statut === 'present') delta = -1
 
-      // en_attente → present : rien (place déjà prise)
-      // present → present : rien
+        // en_attente → present : rien (place déjà prise)
+        // present → present : rien
 
-      const nouvelles = Math.max(0, s.places_disponibles + delta)
-      return {
-        ...s,
-        places_disponibles: nouvelles,
-        est_complet        : nouvelles === 0
+        const nouvelles = Math.max(0, s.places_disponibles + delta)
+        return {
+          ...s,
+          places_disponibles: nouvelles,
+          est_complet: nouvelles === 0
+        }
+      })
+    )
+
+    const request = statut === 'present'
+      ? this.apiService.marquerPresent(id)
+      : this.apiService.marquerAbsent(id)
+
+    request.subscribe({
+      next: () => {
+        this.showToast(
+          statut === 'present' ? '✅ Présent' : '❌ Absent',
+          statut === 'present' ? 'success' : 'warning'
+        )
+        const sId = this.selectedSeanceId()
+        if (sId) this.loadReservations(sId)
+      },
+      error: () => {
+        // Rollback
+        this.reservations.update(list =>
+          list.map(r =>
+            String(r.id) === String(id)
+              ? { ...r, statut: ancienStatut, statut_label: this.getResStatutLabel(ancienStatut) }
+              : r
+          )
+        )
+        this.showToast('❌ Erreur serveur', 'warning')
       }
     })
-  )
-
-  const request = statut === 'present'
-    ? this.apiService.marquerPresent(id)
-    : this.apiService.marquerAbsent(id)
-
-  request.subscribe({
-    next: () => {
-      this.showToast(
-        statut === 'present' ? '✅ Présent' : '❌ Absent',
-        statut === 'present' ? 'success' : 'warning'
-      )
-      const sId = this.selectedSeanceId()
-      if (sId) this.loadReservations(sId)
-    },
-    error: () => {
-      // Rollback
-      this.reservations.update(list =>
-        list.map(r =>
-          String(r.id) === String(id)
-            ? { ...r, statut: ancienStatut, statut_label: this.getResStatutLabel(ancienStatut) }
-            : r
-        )
-      )
-      this.showToast('❌ Erreur serveur', 'warning')
-    }
-  })
-}
+  }
 
 
   cancelReservation(id: string | number): void {
-  if (!confirm('Voulez-vous vraiment annuler cette réservation ?')) return
+    if (!confirm('Voulez-vous vraiment annuler cette réservation ?')) return
 
-  const reservation = this.reservations().find(r => String(r.id) === String(id))
-  if (!reservation) return
+    const reservation = this.reservations().find(r => String(r.id) === String(id))
+    if (!reservation) return
 
-  const ancienStatut = reservation.statut
+    const ancienStatut = reservation.statut
 
-  this.apiService.annulerReservation(id).subscribe({
-    next: () => {
-      // Mise à jour locale
-      this.reservations.update(list =>
-        list.map(r =>
-          String(r.id) === String(id)
-            ? { ...r, statut: 'annule', statut_label: 'Annulé' }
-            : r
+    this.apiService.annulerReservation(id).subscribe({
+      next: () => {
+        // Mise à jour locale
+        this.reservations.update(list =>
+          list.map(r =>
+            String(r.id) === String(id)
+              ? { ...r, statut: 'annule', statut_label: 'Annulé' }
+              : r
+          )
         )
-      )
 
-      // Libérer la place SEULEMENT si en_attente ou present
-      // Si absent → place déjà libérée → pas de décrémentation
-      if (ancienStatut === 'en_attente' || ancienStatut === 'present') {
-        this.seances.update(seances =>
-          seances.map(s => {
-            if (String(s.id) !== String(this.selectedSeanceId())) return s
-            const nouvelles = s.places_disponibles + 1
-            return {
-              ...s,
-              places_disponibles: nouvelles,
-              est_complet        : false
-            }
-          })
-        )
-      }
+        // Libérer la place SEULEMENT si en_attente ou present
+        // Si absent → place déjà libérée → pas de décrémentation
+        if (ancienStatut === 'en_attente' || ancienStatut === 'present') {
+          this.seances.update(seances =>
+            seances.map(s => {
+              if (String(s.id) !== String(this.selectedSeanceId())) return s
+              const nouvelles = s.places_disponibles + 1
+              return {
+                ...s,
+                places_disponibles: nouvelles,
+                est_complet: false
+              }
+            })
+          )
+        }
 
-      this.showToast('🗑 Réservation annulée', 'warning')
-      const sId = this.selectedSeanceId()
-      if (sId) {
-        this.loadReservations(sId)
-        this.loadSeancesForCurrentDate()
-      }
-    },
-    error: () => this.showToast('❌ Erreur lors de l\'annulation', 'warning')
-  })
-}
+        this.showToast('🗑 Réservation annulée', 'warning')
+        const sId = this.selectedSeanceId()
+        if (sId) {
+          this.loadReservations(sId)
+          this.loadSeancesForCurrentDate()
+        }
+      },
+      error: () => this.showToast('❌ Erreur lors de l\'annulation', 'warning')
+    })
+  }
 
   previousDay(): void {
     const d = new Date(this.currentDate());

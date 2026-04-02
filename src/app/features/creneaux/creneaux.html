@@ -136,18 +136,18 @@
         <div class="tl-header">
           <span class="tl-dot"
                 [class.tl-dot--full]="s.est_complet"
-                [class.tl-dot--mid]="!s.est_complet && (5 - s.places_disponibles) >= 3"
-                [class.tl-dot--ok]="!s.est_complet && (5 - s.places_disponibles) < 3">
+                [class.tl-dot--mid]="!s.est_complet && (3 - s.places_disponibles) >= 2"
+                [class.tl-dot--ok]="!s.est_complet && (3 - s.places_disponibles) < 2">
           </span>
           <span class="tl-time">{{ s.heure_debut }}</span>
         </div>
         <div class="tl-bar">
           <div class="tl-bar-fill"
-               [style.width.%]="((5 - s.places_disponibles) / 5) * 100"
-               [ngClass]="s.est_complet ? 'bg-red-500' : (5 - s.places_disponibles) >= 3 ? 'bg-amber-500' : 'bg-emerald-500'">
+               [style.width.%]="((3 - s.places_disponibles) / 3) * 100"
+               [ngClass]="s.est_complet ? 'bg-red-500' : (3 - s.places_disponibles) >= 2 ? 'bg-amber-500' : 'bg-emerald-500'">
           </div>
         </div>
-        <div class="tl-count">{{ 5 - s.places_disponibles }}/5</div>
+        <div class="tl-count">{{ 3 - s.places_disponibles }}/3</div>
       </div>
     </div>
   </div>
@@ -194,12 +194,12 @@
             <span class="session-occ-label">Occupation</span>
             <span class="session-occ-value"
                   [ngClass]="s.places_disponibles === 0 ? 'text-red-400' : 'text-slate-300'">
-              {{ 5 - s.places_disponibles }} / 5
+              {{ 3 - s.places_disponibles }} / 3
             </span>
           </div>
           <div class="session-progress-bar">
             <div class="session-progress-fill"
-                 [style.width.%]="((5 - s.places_disponibles) / 5) * 100"
+                 [style.width.%]="((3 - s.places_disponibles) / 3) * 100"
                  [ngClass]="getBarColor(s)"></div>
           </div>
         </div>
@@ -256,7 +256,7 @@
               </span>
             </div>
             <div>
-              <div class="text-sm font-bold text-white">{{ 5 - (selectedSeance()?.places_disponibles || 0) }} / 5 places</div>
+              <div class="text-sm font-bold text-white">{{ 3 - (selectedSeance()?.places_disponibles || 0) }} / 3 places</div>
               <div class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Remplissage</div>
             </div>
           </div>

@@ -294,6 +294,11 @@
     </div>
 
     <div class="modal-body">
+    
+      <!-- Inline Error Alert -->
+      <div *ngIf="formError()" class="modal-alert modal-alert--warning">
+        <span class="modal-alert-icon">⚠️</span> {{ formError() }}
+      </div>
 
       <!-- Client recap (mode edit) -->
       <div *ngIf="modalMode() === 'edit' && editTarget()" class="client-recap">
@@ -415,21 +420,13 @@
     <span class="remise-unit">%</span>
   </div>
 
-  <!-- Slider optionnel (UX moderne) -->
-  <input
-    type="range"
-    min="0"
-    max="100"
-    [(ngModel)]="aboForm.reduction"
-    class="remise-slider"
-  />
-
-  <!-- Aperçu dynamique -->
+  <!-- Affichage dynamique -->
   <div class="remise-preview" *ngIf="aboForm.reduction > 0">
     💸 Réduction :
     -{{ formatPrice(getPackMeta(aboForm.type).prix * aboForm.reduction / 100) }}
   </div>
 </div>
+      </div>
 
       <!-- Date expiration + Paiement -->
       <div class="form-row">
@@ -539,6 +536,11 @@
     </div>
 
     <div class="modal-body">
+    
+      <!-- Inline Error Alert -->
+      <div *ngIf="formError()" class="modal-alert modal-alert--warning">
+        <span class="modal-alert-icon">⚠️</span> {{ formError() }}
+      </div>
 
       <!-- Nom du pack -->
       <div class="form-group">
