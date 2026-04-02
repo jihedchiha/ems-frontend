@@ -2,112 +2,126 @@ import {
   Component, OnInit, signal, computed, inject
 } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { FormsModule }  from '@angular/forms'
-import { ApiService }   from '../../core/services/api.service'
+import { FormsModule } from '@angular/forms'
+import { ApiService } from '../../core/services/api.service'
 
-export type PackTypeBackend = 'essai' | 'unique' | 'pack5' | 'pack10' | 'pack20' | 'pack30'
-export type ModePaiement    = 'cash' | 'tpe'
-export type AboStatut       = 'actif' | 'expiré' | 'terminé' | 'en_attente'
-export type FilterMode      = 'tous' | 'actif' | 'expiré' | 'terminé' | 'essai'
-export type ModalMode       = 'add' | 'edit'
-export type UserRole        = 'admin' | 'personnel'
+// ── Types ──────────────────────────────────────────────────────
+export type ModePaiement   = 'cash' | 'tpe'
+export type AboStatut      = 'actif' | 'expiré' | 'terminé' | 'en_attente'
+export type FilterMode     = 'tous' | 'actif' | 'expiré' | 'terminé' | 'essai'
+export type ModalMode      = 'add' | 'edit'
+export type UserRole       = 'admin' | 'personnel'
+
+// ── Interfaces API ─────────────────────────────────────────────
+export interface PackAPI {
+  id:          string
+  nom:         string
+  nb_seances:  number
+  prix:        string       // DecimalField → string dans DRF
+  description: string
+  est_actif:   boolean
+  created_at:  string
+}
 
 export interface AbonnementAPI {
-  id                  : string
-  client              : string
-  client_nom          : string
-  type                : PackTypeBackend
-  type_label          : string
-  reduction           : string
-  prix_paye           : string
-  mode_paiement       : ModePaiement
-  est_paye            : boolean
-  date_paiement       : string | null
-  seances_total       : number
-  seances_restantes   : number
-  date_debut          : string
+  id:                   string
+  client:               string
+  client_nom:           string
+  pack:                 string        // UUID du pack (FK)
+  pack_detail:          PackAPI | null
+  reduction:            string        // DecimalField → string
+  prix_paye:            string
+  mode_paiement:        ModePaiement
+  est_paye:             boolean
+  date_paiement:        string | null
+  seances_total:        number
+  seances_restantes:    number
+  date_debut:           string
   date_derniere_seance: string | null
-  date_expiration     : string | null
-  statut              : AboStatut
-  created_at          : string
+  date_expiration:      string | null
+  statut:               AboStatut
+  created_at:           string
 }
 
-export interface AboFormPayload {
-  type           : PackTypeBackend
-  mode_paiement  : ModePaiement
-  est_paye       : boolean
-  date_paiement  : string | null
+// ── Payload création → pack_id attendu par CreerAbonnementSerializer
+export interface AboCreatePayload {
+  pack_id:        string
+  mode_paiement:  ModePaiement | ''
+  est_paye:       boolean
+  date_paiement:  string | null
   date_expiration: string | null
-  reduction      : number
+  reduction:      number
 }
 
+// ── Payload modification → ModifierAbonnementSerializer
+export interface AboEditPayload {
+  mode_paiement?:  ModePaiement
+  est_paye?:       boolean
+  date_paiement?:  string | null
+  date_expiration?: string | null
+  reduction?:      number
+}
+
+// ── Formulaire local ───────────────────────────────────────────
 export interface AboFormLocal {
-  client_cin     : string
-  type           : PackTypeBackend
-  mode_paiement  : ModePaiement
-  est_paye       : boolean
-  date_paiement  : string
+  client_cin:      string
+  pack_id:         string        // UUID du pack sélectionné
+  mode_paiement:   ModePaiement
+  est_paye:        boolean
+  date_paiement:   string
   date_expiration: string
-  reduction      : number
+  reduction:       number
 }
 
-export interface ClientOption {
-  id         : string
-  nom        : string
-  prenom     : string
-  cin        : string
-  telephone_1: string
-}
-
+// ── PackMeta : ce qu'utilise le template ──────────────────────
 export interface PackMeta {
-  key      : PackTypeBackend
-  label    : string
-  icon     : string
-  seances  : number
-  prix     : number
-  validite : string
-  desc     : string
-  color    : string
-  bgClass  : string
-  tagClass : string
-  popular ?: boolean
-  bestValue?: boolean
+  id:        string        // UUID
+  label:     string
+  icon:      string        // emoji généré côté front (absent du back)
+  seances:   number
+  prix:      number
+  desc:      string
+  color:     string
+  bgClass:   string
+  tagClass:  string
 }
 
-// ── Pack Form pour création / édition ────────────────────────────
+// ── Pack form (modal ajout/édition pack) ─────────────────────
 export interface PackFormLocal {
-  key    : PackTypeBackend | ''
-  label  : string
-  icon   : string
-  seances: number | null
-  prix   : number | null
-  validite: string
-  desc   : string
+  id:        string        // UUID si édition, vide si création
+  label:     string
+  seances:   number | null
+  prix:      number | null
+  desc:      string
 }
 
-// ── Remises rapides disponibles ───────────────────────────────────
+// ── Remises rapides ───────────────────────────────────────────
 export const QUICK_DISCOUNTS = [10, 20, 30, 50] as const
 export type QuickDiscount = typeof QUICK_DISCOUNTS[number]
 
 @Component({
-  selector   : 'app-abonnements',
-  standalone : true,
-  imports    : [CommonModule, FormsModule],
+  selector:    'app-abonnements',
+  standalone:  true,
+  imports:     [CommonModule, FormsModule],
   templateUrl: './abonnements.html',
-  styleUrl   : './abonnements.css',
+  styleUrl:    './abonnements.css',
 })
 export class AbonnementsComponent implements OnInit {
 
   private apiService = inject(ApiService)
 
   // ── Rôle ──────────────────────────────────────────────────────
-  userRole     = signal<UserRole>('admin')
-  isAdmin      = computed(() => this.userRole() === 'admin')
-  canManageAbo = computed(() => this.userRole() === 'admin' || this.userRole() === 'personnel')
+  userRole    = signal<UserRole>('admin')
+  isAdmin     = computed(() => this.userRole() === 'admin')
+  canManageAbo = computed(() =>
+    this.userRole() === 'admin' || this.userRole() === 'personnel'
+  )
 
   // ── State ──────────────────────────────────────────────────────
   abonnements      = signal<AbonnementAPI[]>([])
+  packs            = signal<PackMeta[]>([])
   isLoading        = signal<boolean>(false)
+  isLoadingPacks   = signal<boolean>(false)
   searchQuery      = signal<string>('')
   activeFilter     = signal<FilterMode>('tous')
   showModal        = signal<boolean>(false)
@@ -116,12 +130,11 @@ export class AbonnementsComponent implements OnInit {
   clientsOptions   = signal<ClientOption[]>([])
   isLoadingClients = signal<boolean>(false)
 
-  // ── Pack Modal State ───────────────────────────────────────────
-  showPackModal   = signal<boolean>(false)
-  packModalMode   = signal<'add' | 'edit'>('add')
-  packForm        : PackFormLocal = this.emptyPackForm()
+  showPackModal  = signal<boolean>(false)
+  packModalMode  = signal<'add' | 'edit'>('add')
+  packForm: PackFormLocal = this.emptyPackForm()
 
-
+  formError = signal<string | null>(null)
 
   toast = signal<{ visible: boolean; message: string; type: 'success' | 'warning' | 'info' }>({
     visible: false, message: '', type: 'success'
@@ -132,59 +145,17 @@ export class AbonnementsComponent implements OnInit {
 
   readonly QUICK_DISCOUNTS = QUICK_DISCOUNTS
 
+  // Palette de couleurs cyclique pour les packs dynamiques
+  readonly PACK_COLORS = [
+    '#9ba3c8', '#22d3ee', '#f59e0b',
+    '#c084fc', '#3b82f6', '#22c55e',
+    '#ec4899', '#f87171', '#a78bfa',
+  ]
+
+  readonly PACK_ICONS = ['🆓', '⚡', '🌟', '🔷', '💎', '💪', '🏆', '🎯', '🚀']
+
   get searchValue(): string { return this.searchQuery() }
   set searchValue(v: string) { this.searchQuery.set(v) }
-
-  // ── Packs (mutable pour permettre ajout/modif en local) ───────
-  packs = signal<PackMeta[]>([
-    {
-      key: 'essai', label: 'Séance Essai', icon: '🆓',
-      seances: 1, prix: 45,
-      validite: '7 jours',
-      desc    : 'Découverte sans engagement · 1 séance',
-      color: '#9ba3c8', bgClass: 'pack-essai', tagClass: 'tag-essai',
-    },
-    {
-      key: 'unique', label: 'Séance Unique', icon: '⚡',
-      seances: 1, prix: 60,
-      validite: '30 jours',
-      desc    : 'Séance à l\'unité · Sans engagement',
-      color: '#22d3ee', bgClass: 'pack-unique', tagClass: 'tag-unique',
-    },
-    {
-      key: 'pack5', label: 'Pack Découverte', icon: '🌟',
-      seances: 5, prix: 250,
-      validite: '2 mois',
-      desc    : 'Idéal pour débuter · 5 séances',
-      color: '#f59e0b', bgClass: 'pack-5', tagClass: 'tag-5',
-    },
-    {
-      key: 'pack10', label: 'Pack 10', icon: '🔷',
-      seances: 10, prix: 550,
-      validite: '3 mois',
-      desc    : '10 séances · Populaire',
-      color: '#c084fc', bgClass: 'pack-10', tagClass: 'tag-10',
-      popular: true,
-    },
-    {
-      key: 'pack20', label: 'Pack 20', icon: '💎',
-      seances: 20, prix: 920,
-      validite: '4 mois',
-      desc    : '20 séances · Best seller',
-      color: '#3b82f6', bgClass: 'pack-20', tagClass: 'tag-20',
-    },
-    {
-      key: 'pack30', label: 'Pack 30', icon: '💪',
-      seances: 30, prix: 1200,
-      validite: '5 mois',
-      desc    : '30 séances · Meilleure valeur',
-      color: '#22c55e', bgClass: 'pack-30', tagClass: 'tag-30',
-      bestValue: true,
-    },
-  ])
-
-  // Gardé en lecture seule pour accès direct dans le template
-  get PACKS(): PackMeta[] { return this.packs() }
 
   readonly MODES_PAIEMENT = [
     { key: 'cash' as ModePaiement, label: 'Espèces',        icon: '💵' },
@@ -200,7 +171,10 @@ export class AbonnementsComponent implements OnInit {
     if (f === 'actif')   list = list.filter(a => a.statut === 'actif')
     if (f === 'expiré')  list = list.filter(a => a.statut === 'expiré')
     if (f === 'terminé') list = list.filter(a => a.statut === 'terminé')
-    if (f === 'essai')   list = list.filter(a => a.type   === 'essai')
+    // "essai" : on détecte les packs à 1 séance (plus de slug hardcodé)
+    if (f === 'essai')   list = list.filter(a =>
+      a.pack_detail?.nb_seances === 1
+    )
 
     if (q) list = list.filter(a =>
       a.client_nom.toLowerCase().includes(q)
@@ -209,14 +183,19 @@ export class AbonnementsComponent implements OnInit {
   })
 
   totalAbonnements = computed(() => this.abonnements().length)
-  totalActifs      = computed(() =>
-    this.abonnements().filter(a => a.statut === 'actif' && a.type !== 'essai').length
+
+  totalActifs = computed(() =>
+    this.abonnements().filter(a =>
+      a.statut === 'actif' && (a.pack_detail?.nb_seances ?? 0) > 1
+    ).length
   )
-  totalExpirants   = computed(() =>
+
+  totalExpirants = computed(() =>
     this.abonnements().filter(a => a.statut === 'expiré').length
   )
-  totalEssais      = computed(() =>
-    this.abonnements().filter(a => a.type === 'essai').length
+
+  totalEssais = computed(() =>
+    this.abonnements().filter(a => a.pack_detail?.nb_seances === 1).length
   )
 
   revenueTotal = computed(() =>
@@ -225,20 +204,21 @@ export class AbonnementsComponent implements OnInit {
       .reduce((sum, a) => sum + parseFloat(a.prix_paye || '0'), 0)
   )
 
+  // Nombre d'abonnements actifs par pack (par UUID)
   packCounts = computed(() => {
     const list   = this.abonnements().filter(a => a.statut === 'actif')
-    const result = { essai: 0, unique: 0, pack5: 0, pack10: 0, pack20: 0, pack30: 0 }
+    const counts: Record<string, number> = {}
     list.forEach(a => {
-      if (a.type in result) result[a.type as PackTypeBackend]++
+      if (a.pack) counts[a.pack] = (counts[a.pack] ?? 0) + 1
     })
-    return result
+    return counts
   })
 
   parseFloat = parseFloat
 
-  // Prix final affiché dans le formulaire d'abonnement
+  // Prix final affiché dans le formulaire
   prixAffiche(): number {
-    const pack = this.packs().find(p => p.key === this.aboForm.type)
+    const pack = this.packs().find(p => p.id === this.aboForm.pack_id)
     if (!pack) return 0
     if (this.aboForm.reduction > 0) {
       return Math.round(pack.prix * (1 - this.aboForm.reduction / 100))
@@ -248,8 +228,9 @@ export class AbonnementsComponent implements OnInit {
 
   // ── Init ───────────────────────────────────────────────────────
   ngOnInit(): void {
-    this.loadAbonnements()
     this.loadRoleFromStorage()
+    this.loadPacks()
+    this.loadAbonnements()
   }
 
   loadRoleFromStorage(): void {
@@ -259,6 +240,36 @@ export class AbonnementsComponent implements OnInit {
         this.userRole.set(user.role)
       }
     } catch { }
+  }
+
+  // ── Charger packs depuis l'API ─────────────────────────────────
+  loadPacks(): void {
+    this.isLoadingPacks.set(true)
+    this.apiService.getPacks().subscribe({
+      next: (data: PackAPI[]) => {
+        const mapped: PackMeta[] = data.map((p, i) => ({
+          id:       p.id,
+          label:    p.nom,
+          icon:     this.PACK_ICONS[i % this.PACK_ICONS.length],
+          seances:  p.nb_seances,
+          prix:     parseFloat(p.prix),
+          desc:     p.description || `${p.nb_seances} séance(s)`,
+          color:    this.PACK_COLORS[i % this.PACK_COLORS.length],
+          bgClass:  `pack-custom pack-idx-${i % 6}`,
+          tagClass: `tag-custom tag-idx-${i % 6}`,
+        }))
+        this.packs.set(mapped)
+        this.isLoadingPacks.set(false)
+        // Initialiser pack_id si le formulaire est ouvert
+        if (!this.aboForm.pack_id && mapped.length > 0) {
+          this.aboForm.pack_id = mapped[0].id
+        }
+      },
+      error: () => {
+        this.isLoadingPacks.set(false)
+        this.showToast('❌ Erreur chargement packs', 'warning')
+      }
+    })
   }
 
   // ── Charger abonnements ────────────────────────────────────────
@@ -309,8 +320,8 @@ export class AbonnementsComponent implements OnInit {
 
   // ── Helpers ────────────────────────────────────────────────────
   readonly AVATAR_COLORS = [
-    '#3b82f6','#7c3aed','#ec4899',
-    '#10b981','#f59e0b','#06b6d4','#ef4444','#8b5cf6'
+    '#3b82f6', '#7c3aed', '#ec4899',
+    '#10b981', '#f59e0b', '#06b6d4', '#ef4444', '#8b5cf6',
   ]
 
   getInitials(nom: string): string {
@@ -321,13 +332,40 @@ export class AbonnementsComponent implements OnInit {
     return this.AVATAR_COLORS[nom.charCodeAt(0) % this.AVATAR_COLORS.length]
   }
 
-  getPackMeta(type: PackTypeBackend): PackMeta {
-    return this.packs().find(p => p.key === type) ?? this.packs()[0]
+  /** Retourne le PackMeta depuis son UUID */
+  getPackMeta(packId: string): PackMeta {
+    return this.packs().find(p => p.id === packId) ?? {
+      id: '', label: '—', icon: '📦',
+      seances: 0, prix: 0, desc: '',
+      color: '#666', bgClass: '', tagClass: '',
+    }
+  }
+
+  /** Retourne le PackMeta depuis pack_detail (quand l'UUID seul ne suffit pas) */
+  getPackMetaFromDetail(abo: AbonnementAPI): PackMeta {
+    // Priorité : pack_detail du serializer (toujours frais)
+    if (abo.pack_detail) {
+      const cached = this.packs().find(p => p.id === abo.pack)
+      return {
+        id:      abo.pack_detail.id,
+        label:   abo.pack_detail.nom,
+        icon:    cached?.icon  ?? '📦',
+        seances: abo.pack_detail.nb_seances,
+        prix:    parseFloat(abo.pack_detail.prix),
+        desc:    abo.pack_detail.description,
+        color:   cached?.color   ?? '#a78bfa',
+        bgClass: cached?.bgClass ?? 'pack-custom',
+        tagClass:cached?.tagClass ?? 'tag-custom',
+      }
+    }
+    return this.getPackMeta(abo.pack)
   }
 
   getProgressPercent(a: AbonnementAPI): number {
     if (a.seances_total === 0) return 0
-    return Math.round(((a.seances_total - a.seances_restantes) / a.seances_total) * 100)
+    return Math.round(
+      ((a.seances_total - a.seances_restantes) / a.seances_total) * 100
+    )
   }
 
   getProgressColor(pct: number): string {
@@ -338,20 +376,20 @@ export class AbonnementsComponent implements OnInit {
 
   getStatutLabel(s: AboStatut): string {
     const map: Record<AboStatut, string> = {
-      actif     : 'Actif',
-      expiré    : 'Expiré',
-      terminé   : 'Terminé',
-      en_attente: 'En attente',
+      actif:       'Actif',
+      expiré:      'Expiré',
+      terminé:     'Terminé',
+      en_attente:  'En attente',
     }
     return map[s] ?? s
   }
 
   getStatutClass(s: AboStatut): string {
     const map: Record<AboStatut, string> = {
-      actif     : 'sp-actif',
-      expiré    : 'sp-expire',
-      terminé   : 'sp-termine',
-      en_attente: 'sp-attente',
+      actif:       'sp-actif',
+      expiré:      'sp-expire',
+      terminé:     'sp-termine',
+      en_attente:  'sp-attente',
     }
     return map[s] ?? 'sp-termine'
   }
@@ -373,7 +411,7 @@ export class AbonnementsComponent implements OnInit {
   }
 
   getReductionDT(a: AbonnementAPI): number {
-    const meta = this.getPackMeta(a.type)
+    const meta = this.getPackMetaFromDetail(a)
     const pct  = parseFloat(a.reduction || '0')
     return Math.round(meta.prix * pct / 100)
   }
@@ -381,59 +419,47 @@ export class AbonnementsComponent implements OnInit {
   // ── Forms vides ────────────────────────────────────────────────
   private emptyAboForm(): AboFormLocal {
     return {
-      client_cin     : '',
-      type           : 'pack10',
-      mode_paiement  : 'cash',
-      est_paye       : false,
-      date_paiement  : '',
+      client_cin:      '',
+      pack_id:         this.packs()[0]?.id ?? '',
+      mode_paiement:   'cash',
+      est_paye:        false,
+      date_paiement:   '',
       date_expiration: '',
-      reduction      : 0,
+      reduction:       0,
     }
   }
 
   private emptyPackForm(): PackFormLocal {
-    return {
-      key     : '',
-      label   : '',
-      icon    : '📦',
-      seances : null,
-      prix    : null,
-      validite: '',
-      desc    : '',
-    }
+    return { id: '', label: '', seances: null, prix: null, desc: '' }
   }
 
-  // ── Remise rapide ──────────────────────────────────────────────
-  onPackChange(type: PackTypeBackend): void {
-    this.aboForm.type      = type
+  // ── Remise / Pack ──────────────────────────────────────────────
+  onPackChange(packId: string): void {
+    this.aboForm.pack_id   = packId
     this.aboForm.reduction = 0
   }
 
-  /** Sélectionne ou désélectionne une remise rapide */
   selectQuickDiscount(pct: QuickDiscount): void {
-    if (this.aboForm.reduction === pct) {
-      this.aboForm.reduction = 0   // désactiver si déjà sélectionnée
-    } else {
-      this.aboForm.reduction = pct
-    }
+    this.aboForm.reduction = this.aboForm.reduction === pct ? 0 : pct
   }
 
   // ── Filtres ────────────────────────────────────────────────────
   setFilter(f: FilterMode): void { this.activeFilter.set(f) }
 
   // ── Modal Abonnement ───────────────────────────────────────────
-  openAddModal(type: PackTypeBackend = 'pack10'): void {
+  openAddModal(packId: string = ''): void {
     if (!this.canManageAbo()) {
       this.showToast('Action non autorisée', 'warning')
       return
     }
-    this.formError.set('')
+    this.formError.set(null)
     this.modalMode.set('add')
     this.editId.set(null)
-    this.aboForm = { ...this.emptyAboForm(), type }
+    const defaultPack = packId || (this.packs()[0]?.id ?? '')
+    this.aboForm = { ...this.emptyAboForm(), pack_id: defaultPack }
     this.loadClients()
-    this.clientSearchQuery = ''
-    this.selectedClient = null
+    this.clientSearchQuery  = ''
+    this.selectedClient     = null
     this.showClientDropdown = false
     this.showModal.set(true)
   }
@@ -446,17 +472,17 @@ export class AbonnementsComponent implements OnInit {
     const abo = this.abonnements().find(a => a.id === id)
     if (!abo) return
 
-    this.formError.set('')
+    this.formError.set(null)
     this.modalMode.set('edit')
     this.editId.set(id)
     this.aboForm = {
-      client_cin     : '',
-      type           : abo.type,
-      mode_paiement  : abo.mode_paiement || 'cash',
-      est_paye       : abo.est_paye,
-      date_paiement  : abo.date_paiement   || '',
+      client_cin:      '',
+      pack_id:         abo.pack,
+      mode_paiement:   abo.mode_paiement || 'cash',
+      est_paye:        abo.est_paye,
+      date_paiement:   abo.date_paiement   || '',
       date_expiration: abo.date_expiration || '',
-      reduction      : parseFloat(abo.reduction || '0'),
+      reduction:       parseFloat(abo.reduction || '0'),
     }
     this.showModal.set(true)
   }
@@ -469,12 +495,12 @@ export class AbonnementsComponent implements OnInit {
     const abo = this.abonnements().find(a => a.id === id)
     if (!abo) return
 
-    this.formError.set('')
+    this.formError.set(null)
     this.modalMode.set('add')
     this.editId.set(null)
     this.aboForm = {
       ...this.emptyAboForm(),
-      type         : abo.type,
+      pack_id:       abo.pack,
       mode_paiement: abo.mode_paiement || 'cash',
     }
     this.loadClients()
@@ -490,7 +516,6 @@ export class AbonnementsComponent implements OnInit {
       this.showToast('Action réservée à l\'administrateur', 'warning')
       return
     }
-  
     this.formError.set(null)
     this.packModalMode.set('add')
     this.packForm = this.emptyPackForm()
@@ -502,17 +527,14 @@ export class AbonnementsComponent implements OnInit {
       this.showToast('Action réservée à l\'administrateur', 'warning')
       return
     }
-  
     this.formError.set(null)
     this.packModalMode.set('edit')
     this.packForm = {
-      key     : pack.key,
-      label   : pack.label,
-      icon    : pack.icon,
-      seances : pack.seances,
-      prix    : pack.prix,
-      validite: pack.validite,
-      desc    : pack.desc,
+      id:      pack.id,
+      label:   pack.label,
+      seances: pack.seances,
+      prix:    pack.prix,
+      desc:    pack.desc,
     }
     this.showPackModal.set(true)
   }
@@ -522,6 +544,7 @@ export class AbonnementsComponent implements OnInit {
   savePackForm(): void {
     this.formError.set(null)
     const f = this.packForm
+
     if (!f.label.trim()) {
       this.formError.set('Veuillez saisir un nom de pack')
       return
@@ -535,40 +558,33 @@ export class AbonnementsComponent implements OnInit {
       return
     }
 
-    if (this.packModalMode() === 'edit' && f.key) {
-      // Mise à jour du pack existant
-      this.packs.update(list =>
-        list.map(p => p.key === f.key ? {
-          ...p,
-          label   : f.label.trim(),
-          icon    : f.icon || '📦',
-          seances : f.seances!,
-          prix    : f.prix!,
-          validite: f.validite.trim() || p.validite,
-          desc    : f.desc.trim() || p.desc,
-        } : p)
-      )
-      this.showToast(`✅ Pack "${f.label}" modifié`, 'success')
-    } else {
-      // Création d'un nouveau pack — ajouté localement
-      // NOTE: en production, envoyer via API puis recharger
-      const newPack: PackMeta = {
-        key     : (f.label.toLowerCase().replace(/\s+/g, '_')) as PackTypeBackend,
-        label   : f.label.trim(),
-        icon    : f.icon || '📦',
-        seances : f.seances!,
-        prix    : f.prix!,
-        validite: f.validite.trim() || '3 mois',
-        desc    : f.desc.trim() || `${f.seances} séances · ${f.label}`,
-        color   : '#a78bfa',
-        bgClass : 'pack-custom',
-        tagClass: 'tag-custom',
-      }
-      this.packs.update(list => [...list, newPack])
-      this.showToast(`✅ Pack "${newPack.label}" créé`, 'success')
+    // Champs attendus par CreerPackSerializer / ModifierPackSerializer
+    const payload = {
+      nom:         f.label.trim(),
+      nb_seances:  f.seances,
+      prix:        f.prix,
+      description: f.desc.trim(),
     }
 
-    this.closePackModal()
+    if (this.packModalMode() === 'edit' && f.id) {
+      this.apiService.updatePack(f.id, payload).subscribe({
+        next: () => {
+          this.loadPacks()
+          this.showToast(`✅ Pack "${f.label}" modifié`, 'success')
+          this.closePackModal()
+        },
+        error: (err) => this.formError.set(this.extractErrorMessage(err))
+      })
+    } else {
+      this.apiService.createPack(payload).subscribe({
+        next: () => {
+          this.loadPacks()
+          this.showToast(`✅ Pack "${f.label}" créé`, 'success')
+          this.closePackModal()
+        },
+        error: (err) => this.formError.set(this.extractErrorMessage(err))
+      })
+    }
   }
 
   // ── Save Abonnement ────────────────────────────────────────────
@@ -580,107 +596,100 @@ export class AbonnementsComponent implements OnInit {
     }
   }
 
-  formError = signal<string | null>(null)
-  
   private creerAbonnement(): void {
-  this.formError.set(null)
+    this.formError.set(null)
 
-  if (!this.aboForm.client_cin) {
-    this.formError.set('Veuillez sélectionner un client')
-    return
-  }
-
-  const payload: AboFormPayload = {
-    type           : this.aboForm.type,
-    mode_paiement  : this.aboForm.mode_paiement,
-    est_paye       : this.aboForm.est_paye,
-    date_paiement  : this.aboForm.date_paiement   || null,
-    date_expiration: this.aboForm.date_expiration || null,
-    reduction      : this.aboForm.reduction,
-  }
-
-  this.apiService.createAbonnement(this.aboForm.client_cin, payload).subscribe({
-    next: (abo: any) => {
-      this.loadAbonnements()
-      this.showToast(
-        `Abonnement ${this.getPackMeta(abo.type).label} créé`,
-        'success'
-      )
-      this.closeModal()
-    },
-
-    error: (err) => {
-      this.formError.set(this.extractErrorMessage(err))
+    if (!this.aboForm.client_cin) {
+      this.formError.set('Veuillez sélectionner un client')
+      return
     }
-  })
-}
+    if (!this.aboForm.pack_id) {
+      this.formError.set('Veuillez sélectionner un pack')
+      return
+    }
 
-private extractErrorMessage(err: any): string {
-  if (!err?.error) return 'Erreur inconnue'
+    // CreerAbonnementSerializer attend pack_id (UUID)
+    const payload: AboCreatePayload = {
+      pack_id:         this.aboForm.pack_id,
+      mode_paiement:   this.aboForm.mode_paiement,
+      est_paye:        this.aboForm.est_paye,
+      date_paiement:   this.aboForm.date_paiement   || null,
+      date_expiration: this.aboForm.date_expiration || null,
+      reduction:       this.aboForm.reduction,
+    }
 
-  if (err.error.error) return err.error.error
-
-  if (err.error.non_field_errors?.length) {
-    return err.error.non_field_errors[0]
+    this.apiService.createAbonnement(this.aboForm.client_cin, payload).subscribe({
+      next: (abo: AbonnementAPI) => {
+        this.loadAbonnements()
+        const packLabel = abo.pack_detail?.nom
+          ?? this.getPackMeta(abo.pack).label
+        this.showToast(`✅ Abonnement ${packLabel} créé`, 'success')
+        this.closeModal()
+      },
+      error: (err) => this.formError.set(this.extractErrorMessage(err))
+    })
   }
-
-  const firstKey = Object.keys(err.error)[0]
-  if (firstKey && err.error[firstKey]?.length) {
-    return err.error[firstKey][0]
-  }
-
-  return 'Erreur serveur'
-}
 
   private modifierAbonnement(): void {
-  this.formError.set(null)
+    this.formError.set(null)
+    const id = this.editId()
+    if (!id) return
 
-  const id = this.editId()
-  if (!id) return
-
-  const payload: Partial<AboFormPayload> = {
-    mode_paiement  : this.aboForm.mode_paiement,
-    est_paye       : this.aboForm.est_paye,
-    date_paiement  : this.aboForm.date_paiement   || null,
-    date_expiration: this.aboForm.date_expiration || null,
-    reduction      : this.aboForm.reduction,
-  }
-
-  this.apiService.modifierAbonnement(id, payload).subscribe({
-    next: () => {
-      this.loadAbonnements()
-      this.showToast('Abonnement modifié avec succès', 'success')
-      this.closeModal()
-    },
-
-    error: (err) => {
-      this.formError.set(this.extractErrorMessage(err))
+    // ModifierAbonnementSerializer — on ne peut PAS changer le pack
+    const payload: AboEditPayload = {
+      mode_paiement:   this.aboForm.mode_paiement,
+      est_paye:        this.aboForm.est_paye,
+      date_paiement:   this.aboForm.date_paiement   || null,
+      date_expiration: this.aboForm.date_expiration || null,
+      reduction:       this.aboForm.reduction,
     }
-  })
-}
+
+    this.apiService.modifierAbonnement(id, payload).subscribe({
+      next: () => {
+        this.loadAbonnements()
+        this.showToast('✅ Abonnement modifié avec succès', 'success')
+        this.closeModal()
+      },
+      error: (err) => this.formError.set(this.extractErrorMessage(err))
+    })
+  }
 
   // ── Delete ─────────────────────────────────────────────────────
   deleteAbonnement(id: string, clientNom: string): void {
-  if (!this.canManageAbo()) {
-    this.showToast('Action non autorisée', 'warning')
-    return
-  }
-  if (!confirm( `Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`)) return
-
-  this.apiService.deleteAbonnement(id).subscribe({
-    next: () => {
-      this.abonnements.update(list => list.filter(a => a.id !== id))
-      this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
-    },
-    error: (err) => {
-      const msg = err.error?.error || 'Erreur lors de la suppression'
-      this.showToast(`❌ ${msg}`, 'warning')
+    if (!this.canManageAbo()) {
+      this.showToast('Action non autorisée', 'warning')
+      return
     }
-  })
-}
+    if (!confirm(`Supprimer l'abonnement de ${clientNom} ? Cette action est irréversible.`))
+      return
+
+    this.apiService.deleteAbonnement(id).subscribe({
+      next: () => {
+        this.abonnements.update(list => list.filter(a => a.id !== id))
+        this.showToast(`✅ Abonnement de ${clientNom} supprimé`, 'success')
+      },
+      error: (err) => {
+        const msg = err.error?.error || 'Erreur lors de la suppression'
+        this.showToast(`❌ ${msg}`, 'warning')
+      }
+    })
+  }
+
+  // ── Extraction erreur API ──────────────────────────────────────
+  private extractErrorMessage(err: any): string {
+    if (!err?.error) return 'Erreur inconnue'
+    if (err.error.error) return err.error.error
+    if (err.error.non_field_errors?.length) return err.error.non_field_errors[0]
+    const firstKey = Object.keys(err.error)[0]
+    if (firstKey && err.error[firstKey]?.length) return err.error[firstKey][0]
+    return 'Erreur serveur'
+  }
 
   // ── Toast ──────────────────────────────────────────────────────
- showToast(message: string, type: 'success' | 'warning' | 'info' = 'success'): void {
+  showToast(
+    message: string,
+    type: 'success' | 'warning' | 'info' = 'success'
+  ): void {
     clearTimeout(this.toastTimer)
     this.toast.set({ visible: true, message, type })
     this.toastTimer = setTimeout(
@@ -690,40 +699,49 @@ private extractErrorMessage(err: any): string {
   }
 
   // ── Client search ──────────────────────────────────────────────
-  clientSearchQuery  = ''
-  showClientDropdown = false
-  selectedClient     : ClientOption | null = null
+  clientSearchQuery   = ''
+  showClientDropdown  = false
+  selectedClient: ClientOption | null = null
 
   filteredClients = computed(() => {
     const q = this.clientSearchQuery.toLowerCase().trim()
     if (!q) return this.clientsOptions()
     return this.clientsOptions().filter(c =>
-      c.nom.toLowerCase().includes(q) ||
-      c.prenom.toLowerCase().includes(q) ||
-      c.cin.toLowerCase().includes(q) ||
+      c.nom.toLowerCase().includes(q)     ||
+      c.prenom.toLowerCase().includes(q)  ||
+      c.cin.toLowerCase().includes(q)     ||
       (c.telephone_1 || '').includes(q)
     )
   })
 
   onClientSearch(q: string): void {
-    this.clientSearchQuery = q
+    this.clientSearchQuery  = q
     this.showClientDropdown = true
-    this.selectedClient = null
+    this.selectedClient     = null
     this.aboForm.client_cin = ''
     if (q.length >= 2) this.loadClients(q)
   }
 
   selectClient(c: ClientOption): void {
-    this.selectedClient = c
+    this.selectedClient     = c
     this.aboForm.client_cin = c.cin
-    this.clientSearchQuery = c.prenom + ' ' + c.nom
+    this.clientSearchQuery  = c.prenom + ' ' + c.nom
     this.showClientDropdown = false
   }
 
   clearClientSearch(): void {
-    this.clientSearchQuery = ''
-    this.selectedClient = null
+    this.clientSearchQuery  = ''
+    this.selectedClient     = null
     this.aboForm.client_cin = ''
     this.showClientDropdown = false
   }
+}
+
+// ── ClientOption (inchangé) ────────────────────────────────────
+export interface ClientOption {
+  id:          string
+  nom:         string
+  prenom:      string
+  cin:         string
+  telephone_1: string
 }

@@ -154,38 +154,81 @@ getDashboardClients(): Observable<any> {
   supprimerPersonnel(id: string): Observable<any> {
     return this.http.delete<any>(`${this.baseUrl}/users/personnel/${id}/`)
   }
-  // ── ABONNEMENTS ───────────────────────────────────────────────
  
-  // ✅ NOUVEAU — tous les abonnements (liste globale)
- getAllAbonnements(page = 1): Observable<any> {
-  const params = new HttpParams().set('page', page.toString());
-  return this.http.get<any>(`${this.baseUrl}/clients/abonnements/`, { params });
-}
- 
-  // Abonnement actif d'un client
+  // ── PACKS ──────────────────────────────────────────────────────
+
+  getPacks(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/clients/packs/`)
+  }
+
+  createPack(payload: {
+    nom: string
+    nb_seances: number
+    prix: number
+    description?: string
+  }): Observable<any> {
+    return this.http.post(`${this.baseUrl}/clients/packs/`, payload)
+  }
+
+  updatePack(packId: string, payload: {
+    nom?: string
+    nb_seances?: number
+    prix?: number
+    description?: string
+    est_actif?: boolean
+  }): Observable<any> {
+    return this.http.put(`${this.baseUrl}/clients/packs/${packId}/`, payload)
+  }
+
+  deletePack(packId: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/clients/packs/${packId}/`)
+  }
+
+  // ── ABONNEMENTS ────────────────────────────────────────────────
+
+  getAllAbonnements(page = 1, statut?: string, q?: string): Observable<any> {
+    let url = `${this.baseUrl}/clients/abonnements/?page=${page}`
+    if (statut) url += `&statut=${statut}`
+    if (q)      url += `&q=${encodeURIComponent(q)}`
+    return this.http.get(url)
+  }
+
   getAbonnementActif(cin: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/clients/${cin}/abonnement/`)
   }
 
-  deleteAbonnement(id: string): Observable<any> {
-  return this.http.delete<any>(`${this.baseUrl}/clients/abonnements/${id}/`)
-}
- 
-  // ✅ NOUVEAU — créer un abonnement pour un client
-  // POST /api/clients/{cin}/abonnement/
-  // Payload : { type, mode_paiement, est_paye, date_paiement, date_expiration, reduction }
-  createAbonnement(cin: string, data: any): Observable<any> {
-    return this.http.post<any>(`${this.baseUrl}/clients/${cin}/abonnement/`, data)
+  createAbonnement(cin: string, payload: {
+    pack_id:          string
+    mode_paiement?:   'cash' | 'tpe' | ''
+    est_paye?:        boolean
+    date_paiement?:   string | null
+    date_expiration?: string | null
+    reduction?:       number
+  }): Observable<any> {
+    return this.http.post(
+      `${this.baseUrl}/clients/${cin}/abonnement/`,
+      payload
+    )
   }
- 
+
+  modifierAbonnement(id: string, payload: {
+    mode_paiement?:   'cash' | 'tpe'
+    est_paye?:        boolean
+    date_paiement?:   string | null
+    date_expiration?: string | null
+    reduction?:       number
+  }): Observable<any> {
+    return this.http.put(
+      `${this.baseUrl}/clients/abonnements/${id}/`,
+      payload
+    )
+  }
+
+  deleteAbonnement(id: string): Observable<any> {
+    return this.http.delete(`${this.baseUrl}/clients/abonnements/${id}/`)
+  }
+
   getHistoriqueAbonnements(cin: string): Observable<any> {
     return this.http.get<any>(`${this.baseUrl}/clients/${cin}/abonnements/`)
   }
- 
-  // PUT /api/clients/abonnements/{id}/
-  modifierAbonnement(id: string, data: any): Observable<any> {
-    return this.http.put<any>(`${this.baseUrl}/clients/abonnements/${id}/`, data)
-  }
-  
 }
-

@@ -1,0 +1,137 @@
+﻿[33mÔØ»[39m Building...
+[32mÔ£ö[39m Building...
+Application bundle generation failed. [3.063 seconds] - 2026-04-02T22:39:16.579Z
+
+node.exe : [1m[33m[33mÔû▓ [43;33m
+[[43;30mWARNING[43;33m][0m 
+[1mNG8102: NG8102: The left side of 
+this nullish coalescing operation 
+does not include 'null' or 
+'undefined' in its type, therefore 
+the '??' operator can be safely 
+removed. Find more at https://v21.ang
+ular.dev/extended-diagnostics/NG8102
+[0m [1m[35m[plugin 
+angular-compiler][0m
+Au caractère Ligne:1 : 1
++ & "C:\Program 
+Files\nodejs/node.exe" "C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpe 
+   cified: ([1m[33m[33mÔ...r-com  
+  piler][0m:String) [], RemoteExc   
+ eption
+    + FullyQualifiedErrorId : Native 
+   CommandError
+ 
+
+    src/app/features/abonnements/abon
+nements.html:122:34:
+[37m      122 Ôöé 
+...lass="pc-count">{{ 
+([32mpackCounts()[pack.id] ?? 
+0[37m) }} actif(s)</div>
+          ÔòÁ                        
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  Warning occurs in the template of 
+component AbonnementsComponent.
+
+    src/app/features/abonnements/abon
+nements.ts:106:15:
+[37m      106 Ôöé   templateUrl: 
+[32m'./abonnements.html'[37m,
+          ÔòÁ                
+[32m~~~~~~~~~~~~~~~~~~~~[0m
+
+
+[33mÔû▓ [43;33m[[43;30mWARNING[43
+;33m][0m [1mNG8102: NG8102: The 
+left side of this nullish coalescing 
+operation does not include 'null' or 
+'undefined' in its type, therefore 
+the '??' operator can be safely 
+removed. Find more at https://v21.ang
+ular.dev/extended-diagnostics/NG8102
+[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/abonnements/abon
+nements.html:130:14:
+[37m      130 Ôöé           {{ 
+([32mpackCounts()[pack.id] ?? 
+0[37m) }} clients actifs
+          ÔòÁ               
+[32m~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+  Warning occurs in the template of 
+component AbonnementsComponent.
+
+    src/app/features/abonnements/abon
+nements.ts:106:15:
+[37m      106 Ôöé   templateUrl: 
+[32m'./abonnements.html'[37m,
+          ÔòÁ                
+[32m~~~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m
+[1m[31m[31mX 
+[41;31m[[41;97mERROR[41;31m][0m 
+[1mTS2339: Property 
+'getAbonnementActif' does not exist 
+on type 'ApiService'.[0m 
+[1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/clients/clients.
+ts:262:20:
+[37m      262 Ôöé     this.apiServic
+e.[32mgetAbonnementActif[37m(cin).s
+ubscribe({
+          ÔòÁ                     
+[32m~~~~~~~~~~~~~~~~~~[0m
+
+
+[31mX 
+[41;31m[[41;97mERROR[41;31m][0m 
+[1mTS2353: Object literal may only 
+specify known properties, and 'type' 
+does not exist in type '{ pack_id: 
+string; mode_paiement?: "" | "cash" 
+| "tpe" | undefined; est_paye?: 
+boolean | undefined; date_paiement?: 
+string | null | undefined; 
+date_expiration?: string | null | 
+undefined; reduction?: number | 
+undefined; }'.[0m [1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/clients/clients.
+ts:622:46:
+[37m      622 Ôöé ...apiService.crea
+teAbonnement(c.cin, { 
+[32mtype[37m: typeAbo 
+}).subscribe({
+          ÔòÁ                        
+                 [32m~~~~[0m
+
+
+[31mX 
+[41;31m[[41;97mERROR[41;31m][0m 
+[1mTS2339: Property 
+'getAbonnementActif' does not exist 
+on type 'ApiService'.[0m 
+[1m[35m[plugin 
+angular-compiler][0m
+
+    src/app/features/creneaux/creneau
+x.ts:538:20:
+[37m      538 Ôöé     this.apiServic
+e.[32mgetAbonnementActif[37m(client
+.cin).subscribe({
+          ÔòÁ                     
+[32m~~~~~~~~~~~~~~~~~~[0m
+
+[39m[22m

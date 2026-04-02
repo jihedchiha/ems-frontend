@@ -1,9 +1,8 @@
 <!-- ══ TOAST ══════════════════════════════════════════════════════ -->
-<div *ngIf="toast().visible"
-     class="toast"
-     [class.toast--success]="toast().type === 'success'"
-     [class.toast--warning]="toast().type === 'warning'"
-     [class.toast--info]="toast().type === 'info'">
+<div *ngIf="toast().visible" class="toast"
+  [class.toast--success]="toast().type === 'success'"
+  [class.toast--warning]="toast().type === 'warning'"
+  [class.toast--info]="toast().type === 'info'">
   <span>{{ toast().type === 'success' ? '✅' : toast().type === 'warning' ? '⚠️' : 'ℹ️' }}</span>
   {{ toast().message }}
 </div>
@@ -11,7 +10,7 @@
 <!-- ══ PAGE ════════════════════════════════════════════════════════ -->
 <div class="abo-page">
 
-  <!-- Bannière réceptionniste -->
+  <!-- Bannière lecture seule -->
   <div *ngIf="!canManageAbo()" class="role-banner-info">
     <span class="role-banner-icon">👁</span>
     <div>
@@ -20,7 +19,7 @@
     </div>
   </div>
 
-  <!-- Loading -->
+  <!-- Loading global -->
   <div *ngIf="isLoading()" class="loading-bar">
     <div class="loading-fill"></div>
   </div>
@@ -36,6 +35,7 @@
       <div class="kpi-value" style="color:#3b82f6">{{ totalAbonnements() }}</div>
       <div class="kpi-trend trend-neutral">Total en base</div>
     </div>
+
     <div class="kpi-card" (click)="setFilter('actif')">
       <div class="kpi-glow" style="background:#22c55e"></div>
       <div class="kpi-top">
@@ -45,6 +45,7 @@
       <div class="kpi-value" style="color:#22c55e">{{ totalActifs() }}</div>
       <div class="kpi-trend trend-up">Abonnements en cours</div>
     </div>
+
     <div class="kpi-card" (click)="setFilter('expiré')">
       <div class="kpi-glow" style="background:#f87171"></div>
       <div class="kpi-top">
@@ -54,6 +55,7 @@
       <div class="kpi-value" style="color:#f87171">{{ totalExpirants() }}</div>
       <div class="kpi-trend trend-down">À renouveler</div>
     </div>
+
     <div class="kpi-card">
       <div class="kpi-glow" style="background:#fbbf24"></div>
       <div class="kpi-top">
@@ -66,10 +68,11 @@
       </div>
       <div class="kpi-trend trend-up">Abonnements actifs</div>
     </div>
+
     <div class="kpi-card" (click)="setFilter('essai')">
       <div class="kpi-glow" style="background:#c084fc"></div>
       <div class="kpi-top">
-        <div class="kpi-label">Essais</div>
+        <div class="kpi-label">Essais (1 séance)</div>
         <div class="kpi-icon" style="background:rgba(192,132,252,.1);color:#c084fc;border:1px solid rgba(192,132,252,.18)">🆓</div>
       </div>
       <div class="kpi-value" style="color:#c084fc">{{ totalEssais() }}</div>
@@ -77,56 +80,54 @@
     </div>
   </div>
 
-  <!-- ══ EN-TÊTE SECTION PACKS ════════════════════════════════════ -->
+  <!-- ══ EN-TÊTE PACKS ══════════════════════════════════════════ -->
   <div class="section-header">
     <div class="section-title">
       📦 Types de Packs
-      <span class="section-count">{{ PACKS.length }} packs</span>
+      <span class="section-count">{{ packs().length }} packs</span>
     </div>
-    <!-- ✅ Bouton "Ajouter un nouveau type" maintenant fonctionnel -->
     <button *ngIf="isAdmin()" class="btn-add-pack" (click)="openAddPackModal()">
       ✚ Ajouter un nouveau type
     </button>
   </div>
 
+  <!-- Loading packs -->
+  <div *ngIf="isLoadingPacks()" class="loading-bar">
+    <div class="loading-fill"></div>
+  </div>
+
   <!-- ── Pack Cards ── -->
   <div class="packs-row">
-    <div *ngFor="let pack of PACKS"
-         class="pack-card"
-         [class]="'pack-card ' + pack.bgClass">
+    <div *ngFor="let pack of packs()" class="pack-card" [ngClass]="pack.bgClass">
       <div class="pc-glow" [style.background]="pack.color"></div>
-      <div *ngIf="pack.popular"   class="pc-ribbon">Populaire</div>
-      <div *ngIf="pack.bestValue" class="pc-ribbon pc-ribbon--green">Best Value</div>
 
       <div class="pc-top-row">
         <div class="pc-icon">{{ pack.icon }}</div>
-        <!-- ✅ Bouton "Modifier" sur chaque pack maintenant fonctionnel -->
         <button *ngIf="isAdmin()" class="pc-edit-btn"
-                (click)="openEditPackModal(pack); $event.stopPropagation()">
+          (click)="openEditPackModal(pack); $event.stopPropagation()">
           ✏️ Modifier
         </button>
       </div>
 
       <div class="pc-tag" [style.color]="pack.color">{{ pack.label }}</div>
       <div class="pc-title">{{ pack.seances === 1 ? '1 Séance' : pack.seances + ' Séances' }}</div>
-      <div class="pc-desc">{{ pack.desc }} · {{ pack.validite }}</div>
+      <div class="pc-desc">{{ pack.desc }}</div>
 
-      <!-- Prix -->
       <div class="pc-price" [style.color]="pack.color">
         {{ formatPrice(pack.prix) }}
-        <span *ngIf="pack.prix" class="pc-price-sub">/ pack</span>
+        <span class="pc-price-sub">/ pack</span>
       </div>
 
       <div class="pc-footer">
-        <div class="pc-count">{{ packCounts()[pack.key] }} actif(s)</div>
+        <div class="pc-count">{{ (packCounts()[pack.id] ?? 0) }} actif(s)</div>
         <button *ngIf="canManageAbo()" class="pc-assign-btn"
-                [style.color]="pack.color"
-                [style.border-color]="pack.color + '40'"
-                (click)="openAddModal(pack.key); $event.stopPropagation()">
+          [style.color]="pack.color"
+          [style.border-color]="pack.color + '40'"
+          (click)="openAddModal(pack.id); $event.stopPropagation()">
           + Assigner
         </button>
         <span *ngIf="!canManageAbo()" class="pc-view-only" [style.color]="pack.color + 'aa'">
-          {{ packCounts()[pack.key] }} clients actifs
+          {{ (packCounts()[pack.id] ?? 0) }} clients actifs
         </span>
       </div>
     </div>
@@ -138,8 +139,8 @@
       <div class="search-wrap">
         <span class="search-icon">🔍</span>
         <input type="text" class="search-input"
-               placeholder="Rechercher par nom client..."
-               [(ngModel)]="searchValue"/>
+          placeholder="Rechercher par nom client..."
+          [(ngModel)]="searchValue" />
       </div>
       <div class="filter-group">
         <button class="flt-btn" [class.flt-btn--active]="activeFilter() === 'tous'"    (click)="setFilter('tous')">Tous ({{ totalAbonnements() }})</button>
@@ -149,7 +150,9 @@
         <button class="flt-btn" [class.flt-btn--active]="activeFilter() === 'essai'"   (click)="setFilter('essai')">🆓 Essais</button>
       </div>
     </div>
-    <button *ngIf="canManageAbo()" class="btn-add" (click)="openAddModal()">+ Nouvel Abonnement</button>
+    <button *ngIf="canManageAbo()" class="btn-add" (click)="openAddModal()">
+      + Nouvel Abonnement
+    </button>
   </div>
 
   <!-- ── Table ── -->
@@ -188,10 +191,12 @@
               </div>
             </td>
 
-            <!-- Pack -->
+            <!-- Pack — utilise pack_detail directement depuis le serializer -->
             <td>
-              <span class="pack-tag" [ngClass]="getPackMeta(abo.type).tagClass">
-                {{ getPackMeta(abo.type).icon }} {{ abo.type_label || getPackMeta(abo.type).label }}
+              <span class="pack-tag" [ngClass]="getPackMeta(abo.pack).tagClass"
+                [style.color]="getPackMeta(abo.pack).color">
+                {{ getPackMeta(abo.pack).icon }}
+                {{ abo.pack_detail?.nom ?? getPackMeta(abo.pack).label }}
               </span>
             </td>
 
@@ -199,14 +204,15 @@
             <td><span class="date-mono">{{ abo.date_debut | date:'dd/MM/yyyy' }}</span></td>
             <td>
               <span class="date-mono"
-                    [style.color]="abo.statut === 'expiré' ? '#f87171' : 'inherit'">
+                [style.color]="abo.statut === 'expiré' ? '#f87171' : 'inherit'">
                 {{ abo.date_expiration ? (abo.date_expiration | date:'dd/MM/yyyy') : '—' }}
               </span>
             </td>
 
             <!-- Séances -->
             <td>
-              <span class="seances-count" [style.color]="getProgressColor(getProgressPercent(abo))">
+              <span class="seances-count"
+                [style.color]="getProgressColor(getProgressPercent(abo))">
                 {{ getSeancesUtilisees(abo) }}/{{ abo.seances_total }}
               </span>
               <div class="seances-rest">{{ abo.seances_restantes }} restante(s)</div>
@@ -217,8 +223,9 @@
               <div class="progress-wrap">
                 <div class="progress-bar">
                   <div class="progress-fill"
-                       [style.width.%]="getProgressPercent(abo)"
-                       [style.background]="getProgressColor(getProgressPercent(abo))"></div>
+                    [style.width.%]="getProgressPercent(abo)"
+                    [style.background]="getProgressColor(getProgressPercent(abo))">
+                  </div>
                 </div>
                 <span class="progress-txt">{{ getProgressPercent(abo) }}%</span>
               </div>
@@ -248,7 +255,7 @@
               </span>
             </td>
 
-            <!-- Actions admin -->
+            <!-- Actions -->
             <td *ngIf="canManageAbo()">
               <div class="actions-cell">
                 <button class="action-btn action-btn--edit"   (click)="openEditModal(abo.id)">✏️ Modifier</button>
@@ -271,9 +278,8 @@
 
 </div>
 
-<!-- ══ MODAL ABONNEMENT ══════════════════════════════════════════════ -->
-<div *ngIf="showModal() && canManageAbo()"
-     class="modal-backdrop" (click)="closeModal()">
+<!-- ══ MODAL ABONNEMENT ══════════════════════════════════════════ -->
+<div *ngIf="showModal() && canManageAbo()" class="modal-backdrop" (click)="closeModal()">
   <div class="modal-box" (click)="$event.stopPropagation()">
 
     <div class="modal-header">
@@ -282,9 +288,7 @@
           {{ modalMode() === 'add' ? '+ Nouvel Abonnement' : '✏️ Modifier l\'Abonnement' }}
         </div>
         <div class="modal-sub">
-          <ng-container *ngIf="modalMode() === 'add'">
-            Attribuer un pack EMS à un client
-          </ng-container>
+          <ng-container *ngIf="modalMode() === 'add'">Attribuer un pack EMS à un client</ng-container>
           <ng-container *ngIf="modalMode() === 'edit' && editTarget()">
             Client : <strong>{{ editTarget()!.client_nom }}</strong>
           </ng-container>
@@ -294,22 +298,24 @@
     </div>
 
     <div class="modal-body">
-    
-      <!-- Inline Error Alert -->
+
+      <!-- Erreur inline -->
       <div *ngIf="formError()" class="modal-alert modal-alert--warning">
         <span class="modal-alert-icon">⚠️</span> {{ formError() }}
       </div>
 
-      <!-- Client recap (mode edit) -->
+      <!-- Recap client (mode edit) -->
       <div *ngIf="modalMode() === 'edit' && editTarget()" class="client-recap">
-        <div class="client-recap-av" [style.background]="getAvatarColor(editTarget()!.client_nom)">
+        <div class="client-recap-av"
+          [style.background]="getAvatarColor(editTarget()!.client_nom)">
           {{ getInitials(editTarget()!.client_nom) }}
         </div>
         <div>
           <div class="client-recap-name">{{ editTarget()!.client_nom }}</div>
           <div class="client-recap-meta">
-            <span [style.color]="getPackMeta(editTarget()!.type).color">
-              {{ getPackMeta(editTarget()!.type).icon }} Pack actuel : {{ editTarget()!.type_label }}
+            <span [style.color]="getPackMeta(editTarget()!.pack).color">
+              {{ getPackMeta(editTarget()!.pack).icon }}
+              Pack actuel : {{ editTarget()!.pack_detail?.nom ?? getPackMeta(editTarget()!.pack).label }}
             </span>
           </div>
         </div>
@@ -324,22 +330,21 @@
         <label class="form-label">Client * (CIN)</label>
         <div class="client-search-wrap">
           <span class="client-search-icon">🔍</span>
-          <input
-            type="text"
-            class="form-input client-search-input"
+          <input type="text" class="form-input client-search-input"
             placeholder="Rechercher par nom, prénom ou CIN..."
             [(ngModel)]="clientSearchQuery"
             (ngModelChange)="onClientSearch($event)"
             (focus)="showClientDropdown = true"
-            autocomplete="off"
-          />
+            autocomplete="off" />
           <span *ngIf="isLoadingClients()" class="client-search-spinner">⏳</span>
-          <button *ngIf="clientSearchQuery" class="client-search-clear" (click)="clearClientSearch()">✕</button>
+          <button *ngIf="clientSearchQuery" class="client-search-clear"
+            (click)="clearClientSearch()">✕</button>
         </div>
 
-        <!-- Selected client chip -->
+        <!-- Client sélectionné -->
         <div *ngIf="selectedClient" class="client-selected-chip">
-          <div class="chip-avatar" [style.background]="getAvatarColor(selectedClient.nom + ' ' + selectedClient.prenom)">
+          <div class="chip-avatar"
+            [style.background]="getAvatarColor(selectedClient.nom + ' ' + selectedClient.prenom)">
             {{ getInitials(selectedClient.prenom + ' ' + selectedClient.nom) }}
           </div>
           <div class="chip-info">
@@ -349,12 +354,13 @@
           <button class="chip-remove" (click)="clearClientSearch()">✕</button>
         </div>
 
-        <!-- Dropdown -->
-        <div *ngIf="showClientDropdown && !selectedClient && filteredClients().length > 0" class="client-dropdown">
-          <div *ngFor="let c of filteredClients()"
-               class="client-dropdown-item"
-               (mousedown)="selectClient(c)">
-            <div class="cdi-avatar" [style.background]="getAvatarColor(c.nom + ' ' + c.prenom)">
+        <!-- Dropdown clients -->
+        <div *ngIf="showClientDropdown && !selectedClient && filteredClients().length > 0"
+          class="client-dropdown">
+          <div *ngFor="let c of filteredClients()" class="client-dropdown-item"
+            (mousedown)="selectClient(c)">
+            <div class="cdi-avatar"
+              [style.background]="getAvatarColor(c.nom + ' ' + c.prenom)">
               {{ getInitials(c.prenom + ' ' + c.nom) }}
             </div>
             <div class="cdi-info">
@@ -363,33 +369,32 @@
             </div>
           </div>
         </div>
-        <div *ngIf="showClientDropdown && !selectedClient && clientSearchQuery && filteredClients().length === 0 && !isLoadingClients()" class="client-dropdown">
+        <div *ngIf="showClientDropdown && !selectedClient && clientSearchQuery && filteredClients().length === 0 && !isLoadingClients()"
+          class="client-dropdown">
           <div class="client-dropdown-empty">Aucun client trouvé</div>
         </div>
       </div>
 
-      <!-- ══ Pack selector ══ -->
+      <!-- ══ Sélecteur de pack (mode add uniquement) ══ -->
       <div *ngIf="modalMode() === 'add'">
         <label class="form-label">Pack EMS *</label>
         <div class="pack-selector">
-          <div *ngFor="let pack of PACKS"
-               class="pack-select-card"
-               [class.pack-select-card--selected]="aboForm.type === pack.key"
-               [style.--pack-color]="pack.color"
-               (click)="onPackChange(pack.key)">
-            <div *ngIf="aboForm.type === pack.key" class="pack-check">✓</div>
+          <div *ngFor="let pack of packs()" class="pack-select-card"
+            [class.pack-select-card--selected]="aboForm.pack_id === pack.id"
+            [style.--pack-color]="pack.color"
+            (click)="onPackChange(pack.id)">
+            <div *ngIf="aboForm.pack_id === pack.id" class="pack-check">✓</div>
             <div class="psc-icon">{{ pack.icon }}</div>
-            <div class="psc-name" [style.color]="aboForm.type === pack.key ? pack.color : '#fff'">
+            <div class="psc-name"
+              [style.color]="aboForm.pack_id === pack.id ? pack.color : '#fff'">
               {{ pack.seances === 1 ? '1 Séance' : pack.seances + ' séances' }}
             </div>
-            <!-- ✅ Affichage du prix fixe du pack -->
             <div class="psc-price">{{ formatPrice(pack.prix) }}</div>
-            <div class="psc-valid">{{ pack.validite }}</div>
           </div>
         </div>
       </div>
 
-      <!-- ══ Barre de remise rapide ══════════════════════════════ -->
+      <!-- ══ Remise ══ -->
       <div class="remise-section">
         <div class="remise-section-header">
           <span class="remise-section-title">🏷️ Remise</span>
@@ -398,37 +403,28 @@
           </span>
         </div>
 
-        <!-- Prix de base affiché clairement -->
         <div class="prix-base-row">
           <span class="prix-base-label">Prix du pack :</span>
-          <span class="prix-base-val">{{ formatPrice(getPackMeta(aboForm.type).prix) }}</span>
+          <span class="prix-base-val">{{ formatPrice(getPackMeta(aboForm.pack_id).prix) }}</span>
         </div>
 
-        <!-- Boutons remise rapide -->
-       <div class="remise-manual">
-  <label class="form-label">Remise (%)</label>
-
-  <div class="remise-input-wrap">
-    <input
-      type="number"
-      class="form-input remise-input"
-      min="0"
-      max="100"
-      [(ngModel)]="aboForm.reduction"
-      placeholder="0"
-    />
-    <span class="remise-unit">%</span>
-  </div>
-
-  <!-- Affichage dynamique -->
-  <div class="remise-preview" *ngIf="aboForm.reduction > 0">
-    💸 Réduction :
-    -{{ formatPrice(getPackMeta(aboForm.type).prix * aboForm.reduction / 100) }}
-  </div>
-</div>
+        <div class="remise-manual">
+          <label class="form-label">Remise (%)</label>
+          <div class="remise-input-wrap">
+            <input type="number" class="form-input remise-input"
+              min="0" max="100"
+              [(ngModel)]="aboForm.reduction"
+              placeholder="0" />
+            <span class="remise-unit">%</span>
+          </div>
+          <div class="remise-preview" *ngIf="aboForm.reduction > 0">
+            💸 Réduction :
+            -{{ formatPrice(getPackMeta(aboForm.pack_id).prix * aboForm.reduction / 100) }}
+          </div>
+        </div>
       </div>
 
-      <!-- Date expiration + Paiement -->
+      <!-- Date expiration + Mode paiement -->
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Date d'expiration</label>
@@ -473,27 +469,27 @@
         <div class="summary-grid">
           <div class="summary-item">
             <span class="summary-key">Pack</span>
-            <span class="summary-val" [style.color]="getPackMeta(aboForm.type).color">
-              {{ getPackMeta(aboForm.type).icon }} {{ getPackMeta(aboForm.type).label }}
+            <span class="summary-val" [style.color]="getPackMeta(aboForm.pack_id).color">
+              {{ getPackMeta(aboForm.pack_id).icon }} {{ getPackMeta(aboForm.pack_id).label }}
             </span>
           </div>
           <div class="summary-item">
             <span class="summary-key">Séances</span>
-            <span class="summary-val">{{ getPackMeta(aboForm.type).seances }}</span>
+            <span class="summary-val">{{ getPackMeta(aboForm.pack_id).seances }}</span>
           </div>
           <div class="summary-item">
-            <span class="summary-key">Durée</span>
-            <span class="summary-val">{{ getPackMeta(aboForm.type).validite }}</span>
+            <span class="summary-key">Description</span>
+            <span class="summary-val">{{ getPackMeta(aboForm.pack_id).desc || '—' }}</span>
           </div>
           <div class="summary-item">
             <span class="summary-key">Prix final</span>
             <div>
               <div *ngIf="aboForm.reduction > 0" class="summary-prix-barre">
-                {{ formatPrice(getPackMeta(aboForm.type).prix) }}
+                {{ formatPrice(getPackMeta(aboForm.pack_id).prix) }}
               </div>
               <span class="summary-val"
-                    [style.color]="aboForm.reduction > 0 ? 'var(--green)' : '#fbbf24'"
-                    style="font-weight:800">
+                [style.color]="aboForm.reduction > 0 ? 'var(--green)' : '#fbbf24'"
+                style="font-weight:800">
                 {{ formatPrice(prixAffiche()) }}
               </span>
               <span *ngIf="aboForm.reduction > 0" class="summary-remise-badge">
@@ -509,8 +505,8 @@
     <div class="modal-footer">
       <button class="btn-cancel" (click)="closeModal()">Annuler</button>
       <button class="btn-save"
-              [class.btn-save--edit]="modalMode() === 'edit'"
-              (click)="saveAbonnement()">
+        [class.btn-save--edit]="modalMode() === 'edit'"
+        (click)="saveAbonnement()">
         {{ modalMode() === 'add' ? '✓ Créer l\'abonnement' : '✓ Enregistrer les modifications' }}
       </button>
     </div>
@@ -518,9 +514,8 @@
   </div>
 </div>
 
-<!-- ══ MODAL PACK (Ajouter / Modifier un type de pack) ════════════ -->
-<div *ngIf="showPackModal()"
-     class="modal-backdrop" (click)="closePackModal()">
+<!-- ══ MODAL PACK ════════════════════════════════════════════════ -->
+<div *ngIf="showPackModal()" class="modal-backdrop" (click)="closePackModal()">
   <div class="modal-box modal-box--pack" (click)="$event.stopPropagation()">
 
     <div class="modal-header">
@@ -536,37 +531,18 @@
     </div>
 
     <div class="modal-body">
-    
-      <!-- Inline Error Alert -->
+
       <div *ngIf="formError()" class="modal-alert modal-alert--warning">
         <span class="modal-alert-icon">⚠️</span> {{ formError() }}
       </div>
 
-      <!-- Nom du pack -->
+      <!-- Nom -->
       <div class="form-group">
         <label class="form-label">Nom du pack *</label>
         <input class="form-input" type="text"
-               placeholder="ex : Pack 40, Pack VIP..."
-               [(ngModel)]="packForm.label"
-               maxlength="50">
-      </div>
-
-      <!-- Icône + Aperçu -->
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Icône (emoji)</label>
-          <input class="form-input" type="text"
-                 placeholder="📦"
-                 [(ngModel)]="packForm.icon"
-                 maxlength="4"
-                 style="font-size:20px;text-align:center;letter-spacing:4px">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Durée de validité</label>
-          <input class="form-input" type="text"
-                 placeholder="ex : 3 mois, 6 mois..."
-                 [(ngModel)]="packForm.validite">
-        </div>
+          placeholder="ex : Pack 40, Pack VIP..."
+          [(ngModel)]="packForm.label"
+          maxlength="100">
       </div>
 
       <!-- Séances + Prix -->
@@ -574,15 +550,15 @@
         <div class="form-group">
           <label class="form-label">Nombre de séances *</label>
           <input class="form-input" type="number" min="1"
-                 placeholder="ex : 10"
-                 [(ngModel)]="packForm.seances">
+            placeholder="ex : 10"
+            [(ngModel)]="packForm.seances">
         </div>
         <div class="form-group">
           <label class="form-label">Prix du pack (DT) *</label>
           <div class="prix-input-wrap">
             <input class="form-input" type="number" min="0"
-                   placeholder="ex : 550"
-                   [(ngModel)]="packForm.prix">
+              placeholder="ex : 550"
+              [(ngModel)]="packForm.prix">
             <span class="prix-input-unit">DT</span>
           </div>
         </div>
@@ -592,21 +568,19 @@
       <div class="form-group">
         <label class="form-label">Description courte</label>
         <input class="form-input" type="text"
-               placeholder="ex : Idéal pour les habitués · 40 séances"
-               [(ngModel)]="packForm.desc"
-               maxlength="80">
+          placeholder="ex : Idéal pour les habitués · 40 séances"
+          [(ngModel)]="packForm.desc"
+          maxlength="80">
       </div>
 
-      <!-- Aperçu du pack -->
+      <!-- Aperçu -->
       <div *ngIf="packForm.label && packForm.seances && packForm.prix" class="pack-preview">
         <div class="pack-preview-title">Aperçu :</div>
         <div class="pack-preview-card">
-          <div class="pack-preview-icon">{{ packForm.icon || '📦' }}</div>
+          <div class="pack-preview-icon">📦</div>
           <div class="pack-preview-info">
             <div class="pack-preview-name">{{ packForm.label }}</div>
-            <div class="pack-preview-meta">
-              {{ packForm.seances }} séances · {{ packForm.validite || '—' }}
-            </div>
+            <div class="pack-preview-meta">{{ packForm.seances }} séances</div>
           </div>
           <div class="pack-preview-prix">{{ formatPrice(packForm.prix) }}</div>
         </div>

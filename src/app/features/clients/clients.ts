@@ -619,7 +619,7 @@ previousPage(): void {
     if (!c?.cin) return;
     const typeAbo = this.activeAbo()?.type_key || 'pack10';
 
-    this.apiService.createAbonnement(c.cin, { type: typeAbo }).subscribe({
+    this.apiService.createAbonnement(c.cin, { pack_id: typeAbo }).subscribe({
       next: () => {
         this.showToast('✅ Renouvellement effectué', 'success');
         this.loadActiveSubscription(c.cin);
