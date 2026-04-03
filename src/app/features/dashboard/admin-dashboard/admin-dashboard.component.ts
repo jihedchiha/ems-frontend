@@ -567,7 +567,10 @@ export class AdminDashboardComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     this.passwordLoading.set(true);
-    this.apiService.changePassword(f).subscribe({
+    this.apiService.changePassword({
+      old_password: f.old_password,
+      new_password: f.new_password,
+    }).subscribe({
       next: () => {
         this.passwordLoading.set(false);
         this.closePasswordModal();

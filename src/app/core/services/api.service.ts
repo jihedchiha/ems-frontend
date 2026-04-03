@@ -21,9 +21,19 @@ export class ApiService {
   changePassword(payload: {
     old_password: string
     new_password: string
-    confirm_password: string
   }): Observable<any> {
     return this.http.post<any>(`${this.baseUrl}/users/change-password/`, payload)
+  }
+
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/users/forgot-password/`, { email })
+  }
+
+  resetPassword(payload: {
+    token: string
+    new_password: string
+  }): Observable<any> {
+    return this.http.post<any>(`${this.baseUrl}/users/reset-password/`, payload)
   }
 
   // ── CLIENTS ───────────────────────────────────────────────────
