@@ -1,8 +1,8 @@
-import { Component, signal } from '@angular/core'
+import { Component, signal, OnInit } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { CommonModule } from '@angular/common'
 import { HttpClient } from '@angular/common/http'
-import { Router } from '@angular/router'
+import { Router, ActivatedRoute } from '@angular/router'
 
 type LoginView = 'login' | 'forgot' | 'reset'
 
@@ -13,7 +13,7 @@ type LoginView = 'login' | 'forgot' | 'reset'
   templateUrl : './login.component.html',
   styleUrl    : './login.component.css'
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
 
   readonly BASE = 'https://ems-service-ndb1.onrender.com/api'
 
@@ -37,8 +37,18 @@ export class LoginComponent {
 
   constructor(
     private http   : HttpClient,
-    private router : Router
+    private router : Router,
+    private route  : ActivatedRoute
   ) {}
+
+  ngOnInit() {
+    // 🔍 Détection du token dans l'URL
+    const token = this.route.snapshot.queryParamMap.get('token');
+    if (token) {
+      this.resetToken = token;
+      this.goTo('reset');
+    }
+  }
 
   // ── Navigation entre vues ────────────────────────────────────────
   goTo(v: LoginView): void {

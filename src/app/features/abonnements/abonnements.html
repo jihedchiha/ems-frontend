@@ -127,7 +127,7 @@
           + Assigner
         </button>
         <span *ngIf="!canManageAbo()" class="pc-view-only" [style.color]="pack.color + 'aa'">
-          {{ (packCounts()[pack.id] ?? 0) }} clients actifs
+          {{ (packCounts()[pack.id] || 0) }} clients actifs
         </span>
       </div>
     </div>

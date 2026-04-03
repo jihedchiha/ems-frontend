@@ -4,9 +4,13 @@ import { Layout } from './shared/layout/layout';
 
 export const routes: Routes = [
 
-  // ✅ LOGIN ROUTE
+  // ✅ LOGIN & RESET ROUTES
   {
     path: '',
+    component: LoginComponent
+  },
+  {
+    path: 'reset-password',
     component: LoginComponent
   },
 
